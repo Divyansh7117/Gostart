@@ -80,14 +80,14 @@ export default function ChatScreen({ navigation, route }: Props) {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.container, { paddingTop: insets.top }]}
+      style={[styles.container, { paddingTop: insets.top + 32 }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={insets.top}
+      keyboardVerticalOffset={insets.top + 32}
     >
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <CrimsonGlow />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <TouchableOpacity onPress={() => navigation.reset({ index: 0, routes: [{ name: 'MessagesList' }] })} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
         </TouchableOpacity>
         <TouchableOpacity

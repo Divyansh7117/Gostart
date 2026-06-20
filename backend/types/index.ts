@@ -16,7 +16,7 @@ export interface ActiveSearch {
   status: 'searching' | 'found' | 'not_found';
   userId: string;
   filters: Partial<SearchFilters>;
-  result: ProfileResponse | null;
+  results: ProfileResponse[];
   startedAt: number;
   completedAt?: number;
 }

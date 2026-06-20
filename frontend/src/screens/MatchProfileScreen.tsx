@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, StatusBar,
 } from 'react-native';
@@ -7,21 +7,29 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, BORDER_RADIUS, SPACING, FONTS } from '../theme';
-import { useApp } from '../context/AppContext';
-import type { MessagesStackParamList } from '../types';
+import { getProfile } from '../services/api';
+import type { MessagesStackParamList, Profile } from '../types';
 import CrimsonGlow from '../components/CrimsonGlow';
 
 type Props = StackScreenProps<MessagesStackParamList, 'MatchProfile'>;
 
-const chips = ['Chai Lover', 'Early Bird', 'Planner', 'Traveller'];
-
 export default function MatchProfileScreen({ navigation, route }: Props) {
-  const { profile } = route.params;
-  const { filters } = useApp();
   const insets = useSafeAreaInsets();
+  // The profile passed in may be partial (e.g. opened from the messages list),
+  // so fetch the full record by id to fill in the bio, tags and lifestyle.
+  const [profile, setProfile] = useState<Profile>(route.params.profile);
+
+  useEffect(() => {
+    let active = true;
+    getProfile(route.params.profile.id)
+      .then((data) => { if (active && data.success) setProfile(data.profile); })
+      .catch(() => { /* keep the partial profile we already have */ });
+    return () => { active = false; };
+  }, [route.params.profile.id]);
+
   const ageValue = profile.age ? `${profile.age}` : '';
-  const locationValue = profile.city || filters.location;
-  const aboutText = profile.about?.trim() || `Matched for ${filters.lookingFor.toLowerCase()} nearby with the preferences you set.`;
+  const locationValue = profile.city;
+  const aboutText = profile.about?.trim() || 'No bio yet.';
   const detailRows = [
     { key: 'Weekend vibe', value: profile.weekendVibe || 'Not set' },
     { key: 'First date idea', value: profile.firstDateIdea || 'Not set' },
@@ -29,7 +37,7 @@ export default function MatchProfileScreen({ navigation, route }: Props) {
   ];
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 24 }]}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <CrimsonGlow />
 
@@ -40,7 +48,7 @@ export default function MatchProfileScreen({ navigation, route }: Props) {
           locations={[0, 0.55, 1]}
           style={StyleSheet.absoluteFill}
         />
-        <View style={[styles.heroContent, { paddingTop: insets.top + 18 }]}>
+        <View style={[styles.heroContent, { paddingTop: 18 }]}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
           </TouchableOpacity>
@@ -56,25 +64,33 @@ export default function MatchProfileScreen({ navigation, route }: Props) {
         <View style={styles.card}>
           <View style={styles.nameRow}>
             <Text style={styles.name}>{profile.name}, {ageValue}</Text>
-            <View style={styles.verifiedPill}>
-              <Image source={require('../../assets/icons/verified.png')} style={styles.verifiedIcon} resizeMode="contain" />
-              <Text style={styles.verifiedText}>Verified</Text>
-            </View>
+            {profile.verified && (
+              <View style={styles.verifiedPill}>
+                <Image source={require('../../assets/icons/verified.png')} style={styles.verifiedIcon} resizeMode="contain" />
+                <Text style={styles.verifiedText}>Verified</Text>
+              </View>
+            )}
           </View>
 
-          <Text style={styles.meta}>{locationValue} · {profile.distance}</Text>
-          <Text style={styles.location}>{profile.distance}</Text>
+          <Text style={styles.meta}>
+            {[locationValue, profile.height, profile.religion].filter(Boolean).join(' · ')}
+          </Text>
+          <Text style={styles.location}>
+            {[profile.distance, profile.profession].filter(Boolean).join(' · ')}
+          </Text>
 
           <Text style={styles.sectionLabel}>ABOUT</Text>
           <Text style={styles.about}>{aboutText}</Text>
 
-          <View style={styles.chipRow}>
-            {(profile.tags?.length ? profile.tags : chips).map((chip) => (
-              <View key={chip} style={styles.chip}>
-                <Text style={styles.chipText}>{chip}</Text>
-              </View>
-            ))}
-          </View>
+          {(profile.tags?.length ?? 0) > 0 && (
+            <View style={styles.chipRow}>
+              {profile.tags.map((chip) => (
+                <View key={chip} style={styles.chip}>
+                  <Text style={styles.chipText}>{chip}</Text>
+                </View>
+              ))}
+            </View>
+          )}
 
           <View style={styles.detailRows}>
             {detailRows.map((row) => (
@@ -86,12 +102,6 @@ export default function MatchProfileScreen({ navigation, route }: Props) {
           </View>
         </View>
       </ScrollView>
-
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
-        <TouchableOpacity style={styles.ctaBtn} activeOpacity={0.9}>
-          <Text style={styles.ctaText}>Start Conversation</Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 }
@@ -123,7 +133,4 @@ const styles = StyleSheet.create({
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   detailKey: { color: COLORS.textMuted, fontSize: 13 },
   detailValue: { color: COLORS.textPrimary, fontSize: 13, fontFamily: FONTS.medium },
-  footer: { paddingHorizontal: SPACING.md, paddingTop: 30, backgroundColor: '#0A0A0A' },
-  ctaBtn: { backgroundColor: COLORS.primary, borderRadius: 10, paddingVertical: 16, alignItems: 'center' },
-  ctaText: { color: '#fff', fontSize: 15, fontFamily: FONTS.semiBold },
 });

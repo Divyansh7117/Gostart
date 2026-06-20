@@ -50,9 +50,16 @@ function toProfileResponse(p: IProfile): ProfileResponse {
 }
 
 // ── Match Algorithm ──────────────────────────────────────────────────────────
-// Queries MongoDB with the user's filter preferences, picks a random match.
+// Queries MongoDB with the user's filter preferences, returns up to `limit`
+// matching profiles (shuffled) so the user can browse and choose who to talk to.
 
-async function findMatchingProfile(filters: Partial<SearchFilters>): Promise<ProfileResponse | null> {
+const MAX_MATCHES = 3;
+
+async function findMatchingProfiles(
+  filters: Partial<SearchFilters>,
+  selfId: string,
+  limit = MAX_MATCHES,
+): Promise<ProfileResponse[]> {
   const { lookingFor, minAge, maxAge, location, religion, profession } = filters;
 
   // Map "Looking for" to gender values stored in the DB
@@ -64,6 +71,7 @@ async function findMatchingProfile(filters: Partial<SearchFilters>): Promise<Pro
 
   // Build the MongoDB query object dynamically
   const query: Record<string, unknown> = {
+    _id: { $ne: selfId }, // never match yourself
     gender: { $in: targetGenders },
     age: { $gte: minAge ?? 18, $lte: maxAge ?? 99 },
   };
@@ -82,11 +90,13 @@ async function findMatchingProfile(filters: Partial<SearchFilters>): Promise<Pro
     if (sameCity.length > 0) candidates = sameCity;
   }
 
-  if (candidates.length === 0) return null;
+  // Shuffle (Fisher–Yates) so each search surfaces a fresh set, then take `limit`
+  for (let i = candidates.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+  }
 
-  // Random pick so each search can surface a different match
-  const pick = candidates[Math.floor(Math.random() * candidates.length)];
-  return toProfileResponse(pick);
+  return candidates.slice(0, limit).map(toProfileResponse);
 }
 
 // POST /api/matches/search — kick off an async search
@@ -99,24 +109,24 @@ router.post('/search', authMiddleware, (req: Request, res: Response): void => {
     status: 'searching',
     userId,
     filters: filters ?? {},
-    result: null,
+    results: [],
     startedAt: Date.now(),
   };
 
   // Simulate realistic matching latency, then query MongoDB
   setTimeout(() => {
-    findMatchingProfile(filters ?? {})
-      .then((match) => {
+    findMatchingProfiles(filters ?? {}, userId)
+      .then((matches) => {
         activeSearches[searchId] = {
           ...activeSearches[searchId],
-          status: match ? 'found' : 'not_found',
-          result: match,
+          status: matches.length > 0 ? 'found' : 'not_found',
+          results: matches,
           completedAt: Date.now(),
         };
       })
       .catch((err) => {
         console.error('Match search error:', err);
-        activeSearches[searchId] = { ...activeSearches[searchId], status: 'not_found', result: null };
+        activeSearches[searchId] = { ...activeSearches[searchId], status: 'not_found', results: [] };
       });
   }, 3000);
 
@@ -124,7 +134,7 @@ router.post('/search', authMiddleware, (req: Request, res: Response): void => {
 });
 
 // GET /api/matches/search/:searchId — poll for result (frontend calls this every ~1s)
-router.get('/search/:searchId', authMiddleware, (req: Request, res: Response): void => {
+router.get('/search/:searchId', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   const { searchId } = req.params;
   const { userId } = (req as AuthenticatedRequest).user;
   const search = activeSearches[searchId];
@@ -138,10 +148,31 @@ router.get('/search/:searchId', authMiddleware, (req: Request, res: Response): v
     return;
   }
 
-  res.json({ success: true, status: search.status, match: search.result });
+  // Tag each match with whether the user already has a conversation with them,
+  // so the UI can show "Continue Conversation" (free) instead of "Start" (1 credit).
+  let matches: Array<ProfileResponse & { alreadyConnected: boolean; conversationId: string | null }> = [];
+  if (search.results.length > 0) {
+    const convos = await Conversation.find({ userId }).select('profileId _id');
+    const convByProfile = new Map(convos.map((c) => [c.profileId, c._id as string]));
+    matches = search.results.map((p) => ({
+      ...p,
+      alreadyConnected: convByProfile.has(p.id),
+      conversationId: convByProfile.get(p.id) ?? null,
+    }));
+  }
+
+  res.json({
+    success: true,
+    status: search.status,
+    matches,
+    // back-compat: single first match
+    match: matches[0] ?? null,
+  });
 });
 
-// POST /api/matches/start-conversation — deduct 1 credit, create Conversation doc
+// POST /api/matches/start-conversation — open a chat with a matched profile.
+// Costs 1 credit for a NEW connection; reconnecting with someone you've already
+// talked to is free (no deduction) and just returns the existing conversation.
 router.post('/start-conversation', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const { profileId } = req.body as { profileId: string };
@@ -149,13 +180,29 @@ router.post('/start-conversation', authMiddleware, async (req: Request, res: Res
 
     const user = await User.findById(userId);
     if (!user) { res.status(404).json({ success: false, message: 'User not found.' }); return; }
+
+    const profile = await Profile.findById(profileId);
+    if (!profile) { res.status(404).json({ success: false, message: 'Profile not found.' }); return; }
+
+    // Already connected? Return the existing chat — no credit charged.
+    const existing = await Conversation.findOne({ userId, profileId });
+    if (existing) {
+      res.json({
+        success: true,
+        alreadyConnected: true,
+        message: 'Welcome back — picking up where you left off.',
+        conversationId: existing._id,
+        creditsRemaining: user.credits,
+        match: toProfileResponse(profile),
+      });
+      return;
+    }
+
+    // New connection — requires a credit
     if (user.credits < 1) {
       res.status(402).json({ success: false, message: 'Not enough credits.', credits: 0 });
       return;
     }
-
-    const profile = await Profile.findById(profileId);
-    if (!profile) { res.status(404).json({ success: false, message: 'Profile not found.' }); return; }
 
     await User.findByIdAndUpdate(userId, { $inc: { credits: -1 } });
 
@@ -181,6 +228,7 @@ router.post('/start-conversation', authMiddleware, async (req: Request, res: Res
 
     res.json({
       success: true,
+      alreadyConnected: false,
       message: "Conversation started! You're now connected.",
       conversationId: conversation._id,
       creditsRemaining: updatedUser?.credits ?? user.credits - 1,

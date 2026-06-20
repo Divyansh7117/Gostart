@@ -36,7 +36,7 @@ export default function EditProfileScreen({ navigation }: Props) {
       style={{ flex: 1, backgroundColor: COLORS.background }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top + 32 }]}>
         <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
 
         <View style={styles.header}>
@@ -141,7 +141,7 @@ const fieldStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background, paddingTop: 30 },
+  container: { flex: 1, backgroundColor: COLORS.background },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

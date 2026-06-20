@@ -28,9 +28,17 @@ export default function ProfileScreen({ navigation }: Props) {
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
 
   const handleLogout = () => {
+    // RN Web's Alert.alert ignores button callbacks, so confirm via window.confirm there
+    if (Platform.OS === 'web') {
+      // eslint-disable-next-line no-alert
+      if (typeof window !== 'undefined' && window.confirm('Are you sure you want to log out?')) {
+        logout();
+      }
+      return;
+    }
     Alert.alert('Log out', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Log out', style: 'destructive', onPress: logout },
+      { text: 'Log out', style: 'destructive', onPress: () => { logout(); } },
     ]);
   };
 
@@ -68,7 +76,7 @@ export default function ProfileScreen({ navigation }: Props) {
   ];
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 32 }]}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <CrimsonGlow />
       <View style={styles.titleRow}>
@@ -82,7 +90,7 @@ export default function ProfileScreen({ navigation }: Props) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 130 }}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 220 }}>
         <LinearGradient colors={['#1A0A0A', COLORS.background]} style={styles.profileHeader}>
           <TouchableOpacity onPress={handlePickPhoto} activeOpacity={0.85} style={styles.avatarWrap}>
             {avatarUri ? (
@@ -137,22 +145,23 @@ export default function ProfileScreen({ navigation }: Props) {
           ))}
         </View>
 
-        {/* Log Out */}
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={18} color={COLORS.error} />
-          <Text style={styles.logoutText}>Log Out</Text>
-        </TouchableOpacity>
-
         <View style={styles.footerNoteWrap}>
           <Text style={styles.version}>Gostart v1.0.0</Text>
         </View>
       </ScrollView>
+
+      <View style={[styles.logoutDock, { bottom: insets.bottom + 158 }]}>
+        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.85}>
+          <Ionicons name="log-out-outline" size={18} color={COLORS.error} />
+          <Text style={styles.logoutText}>Log Out</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background, paddingTop: 30 },
+  container: { flex: 1, backgroundColor: COLORS.background },
   content: { flex: 1 },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, height: 58, marginBottom: 8 },
   screenTitle: { color: COLORS.textPrimary, fontSize: 24, fontFamily: FONTS.displayBold },
@@ -179,6 +188,7 @@ const styles = StyleSheet.create({
   menuLabel: { color: COLORS.textPrimary, fontSize: 15, flex: 1 },
   menuRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   menuValue: { fontSize: 13, fontWeight: '500' },
+  logoutDock: { position: 'absolute', left: 0, right: 0 },
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginHorizontal: SPACING.lg, marginTop: 10, marginBottom: 6, paddingVertical: 12, borderRadius: BORDER_RADIUS.md, backgroundColor: 'rgba(231, 76, 60, 0.08)', borderWidth: 1, borderColor: 'rgba(231, 76, 60, 0.2)' },
   logoutText: { color: COLORS.error, fontSize: 15, fontWeight: '600' },
   footerNoteWrap: { alignItems: 'center', paddingTop: 6 },

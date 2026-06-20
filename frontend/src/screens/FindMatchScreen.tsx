@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, StatusBar, Image, Dimensions,
+  View, Text, StyleSheet, TouchableOpacity, StatusBar, Image, useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -17,33 +17,43 @@ import type { FindMatchStackParamList } from '../types';
 
 type Props = StackScreenProps<FindMatchStackParamList, 'FindMatch'>;
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-
-// Figma frame is 393px wide — scale the bg placement proportionally to the device.
+// Figma frame is 393px wide — scale the bg placement proportionally. Source photo
+// is 786×1062 (portrait); we fill the box width but keep the photo's natural ratio
+// for height and anchor at the top so the heads are never cropped.
 const FIGMA_FRAME_W = 393;
-const BG_SCALE = SCREEN_WIDTH / FIGMA_FRAME_W;
-
-// Source photo is 786×1062 (portrait). We fill the Figma box width (674) but use the
-// photo's natural aspect ratio for height and anchor at the box top, so the heads
-// (upper part of the photo) are never cropped.
 const IMG_NATURAL_RATIO = 1062 / 786;
-const BG_IMG_WIDTH = 400 * BG_SCALE;
-const BG_IMG_HEIGHT = BG_IMG_WIDTH * IMG_NATURAL_RATIO;
-const BG_IMG_TOP = -30 * BG_SCALE;
-const BG_IMG_LEFT = 0 * BG_SCALE;
 
-const BG_HEIGHT = SCREEN_HEIGHT * 0.5;
+// Compute bg-image placement from the *current* viewport. Reading this reactively
+// (instead of a module-level Dimensions snapshot) keeps the image in the same spot
+// across reloads/restarts and on window resize. Width is clamped so it stays
+// phone-like on wide desktop browsers.
+function useBgImageLayout() {
+  const { width, height } = useWindowDimensions();
+  const frameW = Math.min(width, 480);
+  const scale = frameW / FIGMA_FRAME_W;
+  return {
+    bgHeight: height * 0.5,
+    image: {
+      width: 400 * scale,
+      height: 400 * scale * IMG_NATURAL_RATIO,
+      top: -30 * scale,
+      left: 20 * scale,
+    },
+  };
+}
 
 export default function FindMatchScreen({ navigation }: Props) {
-  const { credits, filters } = useApp();
+  const { credits, filters, refreshCredits } = useApp();
   const insets = useSafeAreaInsets();
   const [showFilters, setShowFilters] = useState(false);
   const [swipeKey, setSwipeKey] = useState(0);
   const hasCredits = credits > 0;
+  const bg = useBgImageLayout();
 
   useFocusEffect(
     useCallback(() => {
       setSwipeKey((k) => k + 1);
+      refreshCredits(); // sync true balance so the no-credits state always shows when out
     }, []),
   );
 
@@ -53,10 +63,10 @@ export default function FindMatchScreen({ navigation }: Props) {
       <CrimsonGlow />
 
       {/* Background image — fixed height, fades to dark */}
-      <View style={styles.bgClip}>
+      <View style={[styles.bgClip, { height: bg.bgHeight }]}>
         <Image
           source={require('../../assets/icons/Background.png')}
-          style={styles.bgImage}
+          style={[styles.bgImage, bg.image]}
           resizeMode="cover"
         />
         <LinearGradient
@@ -92,7 +102,7 @@ export default function FindMatchScreen({ navigation }: Props) {
 
           <SwipeButton
             key={swipeKey}
-            onSwipe={() => setTimeout(() => navigation.navigate('Searching', { filters }), 1500)}
+            onSwipe={() => { if (hasCredits) setTimeout(() => navigation.navigate('Searching', { filters }), 1500); }}
             disabled={!hasCredits}
             label={hasCredits ? 'Swipe to find someone special' : 'No credits remaining'}
           />
@@ -125,15 +135,10 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: BG_HEIGHT,
     overflow: 'hidden',
   },
   bgImage: {
     position: 'absolute',
-    width: BG_IMG_WIDTH,
-    height: BG_IMG_HEIGHT,
-    top: BG_IMG_TOP,
-    left: BG_IMG_LEFT,
   },
 
   topBar: {

@@ -26,6 +26,7 @@ interface AppContextValue {
   setUser: (user: User) => void;
   deductCredit: () => void;
   addCredits: (amount: number) => void;
+  refreshCredits: () => Promise<void>;
   updateFilters: (f: Filters) => void;
 }
 
@@ -101,6 +102,19 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const addCredits = (amount: number): void =>
     setCredits((prev) => prev + amount);
 
+  // Pull the true credit balance from the server (keeps the no-credits UI accurate)
+  const refreshCredits = async (): Promise<void> => {
+    try {
+      const data = await getMe();
+      if (data.success) {
+        setUser(data.user);
+        setCredits(data.user.credits);
+      }
+    } catch {
+      /* offline / unauthorized — keep current state */
+    }
+  };
+
   const updateFilters = (f: Filters): void => setFilters(f);
 
   // Logged in but profile not yet completed → must go through onboarding first
@@ -120,6 +134,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setUser,
         deductCredit,
         addCredits,
+        refreshCredits,
         updateFilters,
       }}
     >

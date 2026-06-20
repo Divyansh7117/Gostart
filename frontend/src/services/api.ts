@@ -8,7 +8,7 @@
 //   Real device:      http://<your-local-IP>:3001/api
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Filters, User, Profile, Message, Conversation, FullConversation, CreditPackage, MatchSummary } from '../types';
+import type { Filters, User, Profile, Message, Conversation, FullConversation, CreditPackage, MatchSummary, MatchCandidate } from '../types';
 
 export const BASE_URL = 'http://localhost:3001/api';
 
@@ -43,7 +43,8 @@ interface SearchStartResponse extends ApiSuccess {
 
 interface SearchPollResponse extends ApiSuccess {
   status: 'searching' | 'found' | 'not_found';
-  match: Profile | null;
+  matches: MatchCandidate[];
+  match: MatchCandidate | null;
 }
 
 interface StartConversationResponse extends ApiSuccess {
@@ -51,6 +52,7 @@ interface StartConversationResponse extends ApiSuccess {
   creditsRemaining: number;
   match: Profile;
   message: string;
+  alreadyConnected: boolean;
 }
 
 interface ConversationsResponse extends ApiSuccess {
@@ -232,6 +234,9 @@ export const startConversation = async (profileId: string) =>
 
 export const getMyMatches = async () =>
   apiFetch<MyMatchesResponse>('/matches/my-matches', { headers: await authHeaders() });
+
+export const getProfile = async (id: string) =>
+  apiFetch<{ success: true; profile: Profile }>(`/profiles/${id}`, { headers: await authHeaders() });
 
 // ── Messages ───────────────────────────────────────────────────────────────────
 

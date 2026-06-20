@@ -101,6 +101,12 @@ export interface MatchSummary {
   profile: Profile;
 }
 
+// A search result: a profile, plus whether we've already connected with them
+export interface MatchCandidate extends Profile {
+  alreadyConnected: boolean;
+  conversationId: string | null;
+}
+
 // ── Credits ────────────────────────────────────────────────────────────────────
 
 export interface CreditPackage {
@@ -136,7 +142,7 @@ export type FindMatchStackParamList = {
   FindMatch: undefined;
   Searching: { filters: Filters };
   NoMatch: undefined;
-  MatchRevealed: { match: Profile };
+  MatchRevealed: { matches: MatchCandidate[] };
   BuyCredits: undefined;
 };
 

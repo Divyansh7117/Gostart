@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Switch, StatusBar, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, BORDER_RADIUS, SPACING, FONTS } from '../theme';
 
@@ -20,6 +21,7 @@ const SETTINGS: PrivacySetting[] = [
 ];
 
 export default function PrivacyScreen({ navigation }: any) {
+  const insets = useSafeAreaInsets();
   const [toggles, setToggles] = useState<Record<string, boolean>>({
     showProfile: true,
     showDistance: true,
@@ -30,7 +32,7 @@ export default function PrivacyScreen({ navigation }: any) {
   const toggle = (key: string) => setToggles((prev) => ({ ...prev, [key]: !prev[key] }));
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 32 }]}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -91,7 +93,7 @@ export default function PrivacyScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background, paddingTop: 30 },
+  container: { flex: 1, backgroundColor: COLORS.background },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 24, height: 58 },
   title: { color: COLORS.textPrimary, fontSize: 24, fontFamily: FONTS.displayBold },
   sectionHeader: { color: COLORS.textSecondary, fontSize: 12, fontFamily: FONTS.semiBold, textTransform: 'uppercase', letterSpacing: 1, paddingHorizontal: SPACING.lg, marginTop: 12, marginBottom: SPACING.sm },

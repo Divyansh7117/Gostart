@@ -40,7 +40,7 @@ export default function BuyCreditsScreen({ navigation }: Props) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 32 }]}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <CrimsonGlow />
 
@@ -115,7 +115,7 @@ export default function BuyCreditsScreen({ navigation }: Props) {
 const COPPER = '#B48E6F';
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background, paddingTop: 30 },
+  container: { flex: 1, backgroundColor: COLORS.background },
 
   header: {
     flexDirection: 'row',

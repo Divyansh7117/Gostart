@@ -41,6 +41,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   content: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: SPACING.xl },
   iconCircle: { width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(255,255,255,0.05)', justifyContent: 'center', alignItems: 'center', marginBottom: SPACING.xl, borderWidth: 1, borderColor: COLORS.cardBorder },
+  noMatchIcon: { width: 120, height: 120, marginBottom: SPACING.xl },
   title: { color: COLORS.textPrimary, fontSize: 30, fontFamily: FONTS.displayBold, marginBottom: SPACING.md, textAlign: 'center' },
   subtitle: { color: COLORS.textSecondary, fontSize: 15, textAlign: 'center', lineHeight: 23, marginBottom: SPACING.xl },
   adjustBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: COLORS.card, borderRadius: BORDER_RADIUS.md, paddingVertical: 16, width: '100%', borderWidth: 1, borderColor: COLORS.cardBorder },

@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   Image, ActivityIndicator, StatusBar, ListRenderItem,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import type { StackScreenProps } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, BORDER_RADIUS, SPACING, FONTS } from '../theme';
@@ -18,15 +19,18 @@ export default function MessagesScreen({ navigation }: Props) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { fetchConversations(); }, []);
-
-  const fetchConversations = async () => {
-    try {
-      const data = await getConversations();
-      if (data.success) setConversations(data.conversations);
-    } catch { /* show empty state */ }
-    finally { setLoading(false); }
-  };
+  // Refetch every time the screen is focused so newly started conversations
+  // (from a match or the carousel) always appear in the list.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      getConversations()
+        .then((data) => { if (active && data.success) setConversations(data.conversations); })
+        .catch(() => { /* show empty state */ })
+        .finally(() => { if (active) setLoading(false); });
+      return () => { active = false; };
+    }, []),
+  );
 
   const formatTime = (timestamp: string): string => {
     const diffHours = Math.floor((Date.now() - new Date(timestamp).getTime()) / 3_600_000);
@@ -62,7 +66,7 @@ export default function MessagesScreen({ navigation }: Props) {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 32 }]}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <CrimsonGlow />
       <View style={styles.header}>
@@ -99,7 +103,7 @@ export default function MessagesScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background, paddingTop: 30 },
+  container: { flex: 1, backgroundColor: COLORS.background },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 0, paddingBottom: 40 },
   title: { color: COLORS.textPrimary, fontSize: 24, fontFamily: FONTS.displayBold },
   galleryBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: BORDER_RADIUS.full, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: COLORS.cardBorder },

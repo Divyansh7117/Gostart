@@ -55,10 +55,10 @@ export default function SearchingScreen({ navigation, route }: Props) {
   const pollForResult = async (id: string) => {
     try {
       const data = await pollSearch(id);
-      if (data.status === 'found' && data.match) {
+      if (data.status === 'found' && data.matches.length > 0) {
         clearInterval(pollInterval.current!);
         setStatus('found');
-        setTimeout(() => navigation.replace('MatchRevealed', { match: data.match! }), 500);
+        setTimeout(() => navigation.replace('MatchRevealed', { matches: data.matches }), 500);
       } else if (data.status === 'not_found') {
         clearInterval(pollInterval.current!);
         setStatus('not_found');
@@ -74,7 +74,7 @@ export default function SearchingScreen({ navigation, route }: Props) {
   const progressWidth = progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '65%'] });
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom + 24 }]}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <CrimsonGlow />
 
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background, justifyContent: 'space-between' },
   centerContent: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: SPACING.lg },
   logoWrapper: { width: 120, height: 120, justifyContent: 'center', alignItems: 'center', marginBottom: SPACING.xl },
-  spinRing: { position: 'absolute', width: 120, height: 120, borderRadius: 60, borderWidth: 2.5, borderColor: 'transparent', borderTopColor: COLORS.primary, borderRightColor: COLORS.primary },
+  spinRing: { position: 'absolute', width: 120, height: 120, borderRadius: 60, borderWidth: 2.5, borderColor: 'transparent', borderTopColor: '#F2F1ED', borderRightColor: '#F2F1ED' },
   logoCircle: { width: 88, height: 88, borderRadius: 44, backgroundColor: 'rgba(201,168,76,0.08)', justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: 'rgba(201,168,76,0.25)' },
   logoImage: { width: 40, height: 40 },
   title: { color: COLORS.textPrimary, fontSize: 30, fontFamily: FONTS.displayBold, textAlign: 'center', lineHeight: 40, marginBottom: SPACING.md },

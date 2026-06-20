@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, BORDER_RADIUS, SPACING, FONTS } from '../theme';
 import type { CommunityPost } from '../types';
@@ -13,6 +14,7 @@ const COMMUNITY_POSTS: CommunityPost[] = [
 ];
 
 export default function CommunityScreen() {
+  const insets = useSafeAreaInsets();
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>(
     Object.fromEntries(COMMUNITY_POSTS.map((p) => [p.id, p.likes])),
   );
@@ -25,7 +27,7 @@ export default function CommunityScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 32 }]}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <CrimsonGlow />
       <View>
@@ -66,7 +68,7 @@ export default function CommunityScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background, paddingTop: 30 },
+  container: { flex: 1, backgroundColor: COLORS.background },
   title: { color: COLORS.textPrimary, fontSize: 24, fontFamily: FONTS.displayBold, paddingHorizontal: 24, paddingTop: 0 },
   subtitle: { color: COLORS.textSecondary, fontSize: 13, paddingHorizontal: 24, marginBottom: 40 },
   scroll: { paddingHorizontal: 24 },

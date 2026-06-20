@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, ActivityIndicator,
   TouchableOpacity, Image,
 } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -118,9 +118,21 @@ const PILL_TOP   = 15;
 const PILL_HEIGHT = 84;
 const CONTAINER_HEIGHT = PILL_TOP + PILL_HEIGHT;
 
+// Full-screen flow/detail screens that should take over the whole screen —
+// the floating tab bar is hidden on these so it never covers their content.
+const HIDE_TAB_BAR_ON = ['Searching', 'NoMatch', 'MatchRevealed', 'MatchesCarousel', 'Chat', 'MatchProfile', 'BuyCredits', 'BuyCreditsProfile'];
+
 function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const bottomPad = insets.bottom;
+
+  // Resolve the focused route inside the active tab's nested stack. Falls back to
+  // the tab's own name when sitting on the stack's initial route.
+  const activeTab = state.routes[state.index];
+  const focusedRouteName = getFocusedRouteNameFromRoute(activeTab) ?? activeTab.name;
+  if (HIDE_TAB_BAR_ON.includes(focusedRouteName)) {
+    return null;
+  }
 
   return (
     <View style={[styles.tabBarContainer, { height: CONTAINER_HEIGHT + bottomPad }]}>
