@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { StackScreenProps } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, BORDER_RADIUS, SPACING, FONTS } from '../theme';
+import { COLORS, BORDER_RADIUS, SPACING, FONTS, CONTENT_MAX_WIDTH } from '../theme';
 import { useApp } from '../context/AppContext';
 import type { ProfileStackParamList } from '../types';
 import CrimsonGlow from '../components/CrimsonGlow';
@@ -90,7 +90,7 @@ export default function ProfileScreen({ navigation }: Props) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 220 }}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 220, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' }}>
         <LinearGradient colors={['#1A0A0A', COLORS.background]} style={styles.profileHeader}>
           <TouchableOpacity onPress={handlePickPhoto} activeOpacity={0.85} style={styles.avatarWrap}>
             {avatarUri ? (
@@ -163,7 +163,7 @@ export default function ProfileScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   content: { flex: 1 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, height: 58, marginBottom: 8 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, height: 58, marginBottom: 8, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   screenTitle: { color: COLORS.textPrimary, fontSize: 24, fontFamily: FONTS.displayBold },
   editBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.cardBorder, justifyContent: 'center', alignItems: 'center' },
   profileHeader: { alignItems: 'center', paddingVertical: 10, paddingTop: 30, paddingHorizontal: SPACING.lg },
@@ -188,8 +188,8 @@ const styles = StyleSheet.create({
   menuLabel: { color: COLORS.textPrimary, fontSize: 15, flex: 1 },
   menuRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   menuValue: { fontSize: 13, fontWeight: '500' },
-  logoutDock: { position: 'absolute', left: 0, right: 0 },
-  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginHorizontal: SPACING.lg, marginTop: 10, marginBottom: 6, paddingVertical: 12, borderRadius: BORDER_RADIUS.md, backgroundColor: 'rgba(231, 76, 60, 0.08)', borderWidth: 1, borderColor: 'rgba(231, 76, 60, 0.2)' },
+  logoutDock: { position: 'absolute', left: 0, right: 0, paddingHorizontal: SPACING.lg, alignItems: 'center' },
+  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 10, marginBottom: 6, paddingVertical: 12, borderRadius: BORDER_RADIUS.md, backgroundColor: 'rgba(231, 76, 60, 0.08)', borderWidth: 1, borderColor: 'rgba(231, 76, 60, 0.2)', maxWidth: CONTENT_MAX_WIDTH, width: '100%' },
   logoutText: { color: COLORS.error, fontSize: 15, fontWeight: '600' },
   footerNoteWrap: { alignItems: 'center', paddingTop: 6 },
   version: { color: COLORS.textMuted, fontSize: 12, textAlign: 'center' },

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, StatusBar, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, BORDER_RADIUS, SPACING, FONTS } from '../theme';
+import { COLORS, BORDER_RADIUS, SPACING, FONTS, CONTENT_MAX_WIDTH } from '../theme';
 import { initiatePayment, confirmPayment } from '../services/api';
 import { useApp } from '../context/AppContext';
 import CrimsonGlow from '../components/CrimsonGlow';
@@ -124,6 +124,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     height: 58,
     marginBottom: 49,
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: 'center',
   },
   headerTextWrap: { flex: 1 },
   title: { color: COLORS.textPrimary, fontSize: 24, fontFamily: FONTS.displayBold },
@@ -134,6 +137,9 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     paddingHorizontal: SPACING.md,
     paddingTop: 24,
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: 'center',
   },
 
   packageCard: {

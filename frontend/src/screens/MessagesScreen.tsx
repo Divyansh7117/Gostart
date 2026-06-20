@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import type { StackScreenProps } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, BORDER_RADIUS, SPACING, FONTS } from '../theme';
+import { COLORS, BORDER_RADIUS, SPACING, FONTS, CONTENT_MAX_WIDTH } from '../theme';
 import { getConversations } from '../services/api';
 import type { Conversation, MessagesStackParamList } from '../types';
 import CrimsonGlow from '../components/CrimsonGlow';
@@ -104,11 +104,11 @@ export default function MessagesScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 0, paddingBottom: 40 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 0, paddingBottom: 40, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   title: { color: COLORS.textPrimary, fontSize: 24, fontFamily: FONTS.displayBold },
   galleryBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: BORDER_RADIUS.full, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: COLORS.cardBorder },
   galleryBtnText: { color: COLORS.textPrimary, fontSize: 13, fontFamily: FONTS.medium },
-  list: { paddingHorizontal: 24, paddingBottom: 140 },
+  list: { paddingHorizontal: 24, paddingBottom: 140, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.cardBorder },
   avatarWrapper: { position: 'relative' },
   avatar: { width: 56, height: 56, borderRadius: 28 },

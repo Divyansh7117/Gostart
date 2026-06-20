@@ -64,3 +64,7 @@ export const BORDER_RADIUS = {
   xl:   28,
   full: 999,
 } as const;
+
+// Phone-first layout: on tablets / foldables / wide windows, content is capped
+// to this width and centered so it stays a readable column instead of stretching.
+export const CONTENT_MAX_WIDTH = 520;

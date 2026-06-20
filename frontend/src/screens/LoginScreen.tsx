@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, BORDER_RADIUS, SPACING, FONTS } from '../theme';
+import { COLORS, BORDER_RADIUS, SPACING, FONTS, CONTENT_MAX_WIDTH } from '../theme';
 import { loginUser, registerUser } from '../services/api';
 import { useApp } from '../context/AppContext';
 
@@ -202,13 +202,13 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
   flex: { flex: 1 },
   scroll: { flexGrow: 1, justifyContent: 'center', padding: SPACING.lg },
-  hero: { alignItems: 'center', marginBottom: SPACING.xl },
+  hero: { alignItems: 'center', marginBottom: SPACING.xl, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   logoStack: { alignItems: 'center', marginBottom: SPACING.sm },
   logoIcon: { width: 88, height: 88, marginBottom: 2 },
   brand: { color: COLORS.textPrimary, fontSize: 34, fontFamily: FONTS.displayBold },
   tagline: { color: COLORS.textPrimary, fontSize: 15, fontFamily: FONTS.medium, marginTop: 6 },
   subtag: { color: COLORS.textSecondary, fontSize: 12, marginTop: 6 },
-  card: { backgroundColor: COLORS.card, borderRadius: BORDER_RADIUS.lg, padding: SPACING.lg, borderWidth: 1, borderColor: COLORS.cardBorder, marginBottom: SPACING.lg },
+  card: { backgroundColor: COLORS.card, borderRadius: BORDER_RADIUS.lg, padding: SPACING.lg, borderWidth: 1, borderColor: COLORS.cardBorder, marginBottom: SPACING.lg, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   togglePill: { flexDirection: 'row', backgroundColor: '#111', borderRadius: BORDER_RADIUS.full, padding: 4, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.cardBorder },
   toggleOption: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: BORDER_RADIUS.full },
   toggleOptionActive: { backgroundColor: COLORS.primary },

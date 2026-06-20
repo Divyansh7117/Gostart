@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, BORDER_RADIUS, SPACING, FONTS } from '../theme';
+import { COLORS, BORDER_RADIUS, SPACING, FONTS, CONTENT_MAX_WIDTH } from '../theme';
 import type { CommunityPost } from '../types';
 import CrimsonGlow from '../components/CrimsonGlow';
 
@@ -30,7 +30,7 @@ export default function CommunityScreen() {
     <View style={[styles.container, { paddingTop: insets.top + 32 }]}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <CrimsonGlow />
-      <View>
+      <View style={styles.headerWrap}>
         <Text style={styles.title}>Community</Text>
         <Text style={styles.subtitle}>Stories, tips & love in the making</Text>
       </View>
@@ -69,9 +69,10 @@ export default function CommunityScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
+  headerWrap: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   title: { color: COLORS.textPrimary, fontSize: 24, fontFamily: FONTS.displayBold, paddingHorizontal: 24, paddingTop: 0 },
   subtitle: { color: COLORS.textSecondary, fontSize: 13, paddingHorizontal: 24, marginBottom: 40 },
-  scroll: { paddingHorizontal: 24 },
+  scroll: { paddingHorizontal: 24, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   card: { backgroundColor: COLORS.card, borderRadius: BORDER_RADIUS.lg, padding: SPACING.lg, marginBottom: SPACING.md, borderWidth: 1, borderColor: COLORS.cardBorder },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: SPACING.sm },
   emojiCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.08)', justifyContent: 'center', alignItems: 'center' },

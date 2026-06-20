@@ -13,7 +13,7 @@ import {
   Animated,
   PanResponder,
   PanResponderInstance,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, BORDER_RADIUS } from '../theme';
@@ -26,8 +26,7 @@ interface SwipeButtonProps {
 
 const THUMB_SIZE = 56;
 const BAR_HEIGHT = 64;
-const screenWidth = Dimensions.get('window').width;
-const BAR_WIDTH = Math.min(screenWidth - 48, 400);
+const MAX_BAR_WIDTH = 400;
 
 export default function SwipeButton({
   onSwipe,
@@ -36,7 +35,9 @@ export default function SwipeButton({
 }: SwipeButtonProps) {
   const [isSwiped, setIsSwiped] = useState(false);
   const translateX = useRef(new Animated.Value(0)).current;
-  const maxSwipe = BAR_WIDTH - THUMB_SIZE - 8;
+  const { width } = useWindowDimensions();
+  const barWidth = Math.min(width - 48, MAX_BAR_WIDTH);
+  const maxSwipe = barWidth - THUMB_SIZE - 8;
 
   const panResponder = useRef<PanResponderInstance>(
     PanResponder.create({
@@ -94,7 +95,7 @@ export default function SwipeButton({
   // ── SWIPED state ────────────────────────────────────────────────────────────
   if (isSwiped) {
     return (
-      <View style={[styles.container, styles.containerSwiped]}>
+      <View style={[styles.container, styles.containerSwiped, { maxWidth: barWidth }]}>
         <Text style={styles.findingLabel}>Finding match...</Text>
         <View style={[styles.thumb, styles.thumbRight]}>
           <ArrowGroup />
@@ -109,7 +110,7 @@ export default function SwipeButton({
       style={[
         styles.container,
         disabled && styles.disabled,
-        { backgroundColor: bgColor },
+        { backgroundColor: bgColor, maxWidth: barWidth },
       ]}
     >
       <Animated.Text style={[styles.label, { opacity: labelOpacity }]}>
@@ -129,7 +130,6 @@ export default function SwipeButton({
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    maxWidth: BAR_WIDTH,
     alignSelf: 'center' as const,
     height: BAR_HEIGHT,
     borderRadius: BORDER_RADIUS.full,

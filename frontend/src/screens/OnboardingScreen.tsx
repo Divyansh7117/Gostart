@@ -11,7 +11,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { COLORS, BORDER_RADIUS, SPACING, FONTS } from '../theme';
+import { COLORS, BORDER_RADIUS, SPACING, FONTS, CONTENT_MAX_WIDTH } from '../theme';
 import { saveProfile } from '../services/api';
 import { useApp } from '../context/AppContext';
 import CrimsonGlow from '../components/CrimsonGlow';
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
   dotActive: { backgroundColor: COLORS.primary, width: 34 },
   dotDone: { backgroundColor: COLORS.primaryLight },
 
-  scroll: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.sm },
+  scroll: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.sm, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   title: { color: COLORS.textPrimary, fontSize: 26, fontFamily: FONTS.displayBold, marginBottom: 4 },
   subtitle: { color: COLORS.textSecondary, fontSize: 14, marginBottom: SPACING.lg, lineHeight: 20 },
 
@@ -300,6 +300,6 @@ const styles = StyleSheet.create({
   chipTextActive: { color: '#fff' },
 
   footer: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: SPACING.lg, paddingTop: SPACING.md, backgroundColor: COLORS.background, borderTopWidth: 1, borderTopColor: COLORS.cardBorder },
-  primaryBtn: { backgroundColor: COLORS.primary, borderRadius: BORDER_RADIUS.md, paddingVertical: 16, alignItems: 'center' },
+  primaryBtn: { backgroundColor: COLORS.primary, borderRadius: BORDER_RADIUS.md, paddingVertical: 16, alignItems: 'center', width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   primaryBtnText: { color: '#fff', fontSize: 16, fontFamily: FONTS.semiBold, letterSpacing: 0.2 },
 });

@@ -1,14 +1,14 @@
 import React from 'react';
 import {
   View, Text, StyleSheet, ActivityIndicator,
-  TouchableOpacity, Image,
+  TouchableOpacity, Image, useWindowDimensions,
 } from 'react-native';
 import { NavigationContainer, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS } from '../theme';
+import { COLORS, CONTENT_MAX_WIDTH } from '../theme';
 import { useApp } from '../context/AppContext';
 import type {
   RootStackParamList,
@@ -124,7 +124,10 @@ const HIDE_TAB_BAR_ON = ['Searching', 'NoMatch', 'MatchRevealed', 'MatchesCarous
 
 function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const bottomPad = insets.bottom;
+  // On wide screens (tablets/foldables) keep the bar a centered, phone-width column
+  const sideInset = Math.max(0, (width - CONTENT_MAX_WIDTH) / 2);
 
   // Resolve the focused route inside the active tab's nested stack. Falls back to
   // the tab's own name when sitting on the stack's initial route.
@@ -137,12 +140,12 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   return (
     <View style={[styles.tabBarContainer, { height: CONTAINER_HEIGHT + bottomPad }]}>
       {/* Floating pill — dark frosted glass */}
-      <View style={[styles.pill, { bottom: bottomPad }]}>
+      <View style={[styles.pill, { bottom: bottomPad, left: sideInset, right: sideInset }]}>
         <View style={styles.pillOverlay} />
       </View>
 
       {/* Tab items row — aligned to pill baseline */}
-      <View style={[styles.menu, { bottom: bottomPad }]}>
+      <View style={[styles.menu, { bottom: bottomPad, left: sideInset + 24, right: sideInset + 24 }]}>
         {TABS.map((tab, index) => {
           const focused = state.index === index;
           const isFindMatch = tab.name === 'FindMatchTab';
