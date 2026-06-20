@@ -10,6 +10,19 @@ export interface User {
   age: number;
   gender: string;
   credits: number;
+  city?: string;
+  height?: string;
+  religion?: string;
+  profession?: string;
+  college?: string;
+  about?: string;
+  tags?: string[];
+  weekendVibe?: string;
+  firstDateIdea?: string;
+  loveLanguage?: string;
+  photo?: string;
+  distance?: string;
+  onboardingComplete?: boolean;
 }
 
 // ── Match Profiles ─────────────────────────────────────────────────────────────
@@ -32,6 +45,12 @@ export interface Profile {
   loveLanguage: string;
   verified: boolean;
   photo: string;
+  userCity?: string;
+  userAbout?: string;
+  userTags?: string[];
+  userWeekendVibe?: string;
+  userFirstDateIdea?: string;
+  userLoveLanguage?: string;
 }
 
 // ── Filters ────────────────────────────────────────────────────────────────────
@@ -76,6 +95,12 @@ export interface FullConversation {
   messages: Message[];
 }
 
+// A matched profile plus the conversation it belongs to (for the matches carousel)
+export interface MatchSummary {
+  conversationId: string;
+  profile: Profile;
+}
+
 // ── Credits ────────────────────────────────────────────────────────────────────
 
 export interface CreditPackage {
@@ -103,6 +128,7 @@ export interface CommunityPost {
 
 export type RootStackParamList = {
   Login: undefined;
+  Onboarding: undefined;
   Main: undefined;
 };
 
@@ -116,14 +142,26 @@ export type FindMatchStackParamList = {
 
 export type MessagesStackParamList = {
   MessagesList: undefined;
+  MatchesCarousel: undefined;
   Chat: { conversationId: string; match: Profile };
+  MatchProfile: { profile: Profile };
+};
+
+export type ProfileStackParamList = {
+  ProfileMain: undefined;
+  EditProfile: undefined;
+  BuyCreditsProfile: undefined;
+  Notifications: undefined;
+  Privacy: undefined;
+  HelpSupport: undefined;
+  Terms: undefined;
 };
 
 export type MainTabParamList = {
   FindMatchTab: NavigatorScreenParams<FindMatchStackParamList>;
   MessagesTab: NavigatorScreenParams<MessagesStackParamList>;
   CommunityTab: undefined;
-  ProfileTab: undefined;
+  ProfileTab: NavigatorScreenParams<ProfileStackParamList>;
 };
 
 // NavigatorScreenParams lets us nest stacks inside tabs with correct types

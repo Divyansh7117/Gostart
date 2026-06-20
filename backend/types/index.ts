@@ -41,3 +41,23 @@ export interface ProfileResponse {
   verified: boolean;
   photo: string;
 }
+
+export interface UserResponse {
+  id: string;
+  name: string;
+  email: string;
+  age: number;
+  gender: string;
+  credits: number;
+  city?: string;
+  height?: string;
+  religion?: string;
+  profession?: string;
+  college?: string;
+  about?: string;
+  tags?: string[];
+  weekendVibe?: string;
+  firstDateIdea?: string;
+  loveLanguage?: string;
+  photo?: string;
+}

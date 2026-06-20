@@ -1,13 +1,14 @@
 // Searching screen — animated loading state while backend finds a match.
 
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Animated, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, Animated, StatusBar, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { StackScreenProps } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONTS } from '../theme';
 import { startSearch, pollSearch } from '../services/api';
 import type { FindMatchStackParamList } from '../types';
+import CrimsonGlow from '../components/CrimsonGlow';
 
 type Props = StackScreenProps<FindMatchStackParamList, 'Searching'>;
 
@@ -75,12 +76,13 @@ export default function SearchingScreen({ navigation, route }: Props) {
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <CrimsonGlow />
 
       <View style={styles.centerContent}>
         <View style={styles.logoWrapper}>
           <Animated.View style={[styles.spinRing, { transform: [{ rotate: spinInterpolate }] }]} />
           <Animated.View style={[styles.logoCircle, { transform: [{ scale: pulseAnim }] }]}>
-            <Ionicons name="heart" size={40} color={COLORS.gold} />
+            <Image source={require('../../assets/icons/Logomark.png')} style={styles.logoImage} resizeMode="contain" />
           </Animated.View>
         </View>
 
@@ -108,6 +110,7 @@ const styles = StyleSheet.create({
   logoWrapper: { width: 120, height: 120, justifyContent: 'center', alignItems: 'center', marginBottom: SPACING.xl },
   spinRing: { position: 'absolute', width: 120, height: 120, borderRadius: 60, borderWidth: 2.5, borderColor: 'transparent', borderTopColor: COLORS.primary, borderRightColor: COLORS.primary },
   logoCircle: { width: 88, height: 88, borderRadius: 44, backgroundColor: 'rgba(201,168,76,0.08)', justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: 'rgba(201,168,76,0.25)' },
+  logoImage: { width: 40, height: 40 },
   title: { color: COLORS.textPrimary, fontSize: 30, fontFamily: FONTS.displayBold, textAlign: 'center', lineHeight: 40, marginBottom: SPACING.md },
   subtitle: { color: COLORS.textSecondary, fontSize: 14, textAlign: 'center', lineHeight: 22, marginBottom: SPACING.xl },
   progressTrack: { width: '65%', height: 3, backgroundColor: COLORS.card, borderRadius: 2, overflow: 'hidden' },

@@ -32,8 +32,42 @@ export async function connectDB(): Promise<void> {
 // ── Seed: Dating Profiles ────────────────────────────────────────────────────
 
 async function seedInitialData(): Promise<void> {
+  await migrateConversations();
+  await migrateOnboardingFlag();
   await seedProfiles();
   await seedDemoUser();
+}
+
+// Users created before the onboarding flow existed have no onboardingComplete
+// field. Treat them as already onboarded so they aren't forced through it.
+async function migrateOnboardingFlag(): Promise<void> {
+  const result = await User.updateMany(
+    { onboardingComplete: { $exists: false } },
+    { $set: { onboardingComplete: true } },
+  );
+  if (result.modifiedCount > 0) {
+    console.log(`[MongoDB] Marked ${result.modifiedCount} existing user(s) as onboarded.`);
+  }
+}
+
+async function migrateConversations(): Promise<void> {
+  const convos = await Conversation.find({ chatId: { $exists: false } });
+  for (const conv of convos) {
+    const chatId = [conv.userId, conv.profileId].sort().join('_');
+    await Conversation.updateOne({ _id: conv._id }, { $set: { chatId } });
+  }
+  const msgs = await Message.find({ chatId: { $exists: false } });
+  for (const msg of msgs) {
+    if (msg.conversationId) {
+      const conv = await Conversation.findById(msg.conversationId);
+      if (conv?.chatId) {
+        await Message.updateOne({ _id: msg._id }, { $set: { chatId: conv.chatId } });
+      }
+    }
+  }
+  if (convos.length > 0 || msgs.length > 0) {
+    console.log(`[MongoDB] Migrated ${convos.length} conversations, ${msgs.length} messages to chatId format.`);
+  }
 }
 
 async function seedProfiles(): Promise<void> {
@@ -158,26 +192,31 @@ async function seedDemoUser(): Promise<void> {
     age: 28,
     gender: 'male',
     credits: 5,
+    onboardingComplete: true,
   });
 
-  // Seed two conversations so the Messages tab has content on first launch
+  const chatId1 = [demoUser._id, 'profile_001'].sort().join('_');
+  const chatId2 = [demoUser._id, 'profile_002'].sort().join('_');
+
   const conv1 = await Conversation.create({
     _id: 'conv_demo_001',
     userId: demoUser._id,
     profileId: 'profile_001',
+    chatId: chatId1,
   });
 
   const conv2 = await Conversation.create({
     _id: 'conv_demo_002',
     userId: demoUser._id,
     profileId: 'profile_002',
+    chatId: chatId2,
   });
 
   await Message.insertMany([
-    { conversationId: conv1._id, senderId: 'profile_001', text: 'Hey! Excited to chat 😊', timestamp: new Date(Date.now() - 3_600_000) },
-    { conversationId: conv1._id, senderId: demoUser._id, text: 'Same here! Tell me about your café recommendations in Gurgaon?', timestamp: new Date(Date.now() - 1_800_000) },
-    { conversationId: conv1._id, senderId: 'profile_001', text: 'Oh you HAVE to try Unplugged Courtyard in Cyber Hub!', timestamp: new Date(Date.now() - 900_000) },
-    { conversationId: conv2._id, senderId: 'profile_002', text: 'Hi there! Loved your profile.', timestamp: new Date(Date.now() - 86_400_000) },
+    { chatId: chatId1, conversationId: conv1._id, senderId: 'profile_001', text: 'Hey! Excited to chat 😊', timestamp: new Date(Date.now() - 3_600_000) },
+    { chatId: chatId1, conversationId: conv1._id, senderId: demoUser._id, text: 'Same here! Tell me about your café recommendations in Gurgaon?', timestamp: new Date(Date.now() - 1_800_000) },
+    { chatId: chatId1, conversationId: conv1._id, senderId: 'profile_001', text: 'Oh you HAVE to try Unplugged Courtyard in Cyber Hub!', timestamp: new Date(Date.now() - 900_000) },
+    { chatId: chatId2, conversationId: conv2._id, senderId: 'profile_002', text: 'Hi there! Loved your profile.', timestamp: new Date(Date.now() - 86_400_000) },
   ]);
 
   console.log('[MongoDB] Demo user created  →  demo@gostart.app / demo123');

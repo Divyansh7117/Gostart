@@ -1,5 +1,3 @@
-// Login / Register screen.
-
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
@@ -8,7 +6,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, BORDER_RADIUS, SPACING } from '../theme';
+import { COLORS, BORDER_RADIUS, SPACING, FONTS } from '../theme';
 import { loginUser, registerUser } from '../services/api';
 import { useApp } from '../context/AppContext';
 
@@ -25,12 +23,23 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async () => {
-    if (!email || !password) { Alert.alert('Oops', 'Please fill in all required fields.'); return; }
+    if (!email || !password) {
+      Alert.alert('Oops', 'Please fill in all required fields.');
+      return;
+    }
+
+    if (isSignUp && (!name || !age)) {
+      Alert.alert('Oops', 'Please enter your name and age to continue.');
+      return;
+    }
+
     setLoading(true);
     try {
       const data = isSignUp
         ? await registerUser(name, email, password, parseInt(age, 10), gender)
         : await loginUser(email, password);
+
+      // New users land on the onboarding flow automatically (onboardingComplete=false)
       if (data.success) await login(data.user, data.token);
     } catch (err) {
       Alert.alert('Error', err instanceof Error ? err.message : 'Something went wrong.');
@@ -60,74 +69,120 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Logo */}
-          <View style={styles.logoArea}>
-            <Image source={require('../../assets/icons/Logomark.png')} style={styles.logoIcon} resizeMode="contain" />
-            <Text style={styles.tagline}>Verified profiles. Serious Intentions.</Text>
+          <View style={styles.hero}>
+            <View style={styles.logoStack}>
+              <Image source={require('../../assets/icons/Logomark.png')} style={styles.logoIcon} resizeMode="contain" />
+              <Text style={styles.brand}>Gostart</Text>
+            </View>
+            <Text style={styles.tagline}>Verified profiles. Serious intentions.</Text>
+            <Text style={styles.subtag}>Join with a profile that feels like you.</Text>
           </View>
 
-          {/* Form card */}
           <View style={styles.card}>
-            <Text style={styles.formTitle}>{isSignUp ? 'Create Account' : 'Welcome Back'}</Text>
-
-            {isSignUp && (
-              <TextInput
-                style={styles.input} placeholder="Your name"
-                placeholderTextColor={COLORS.textMuted} value={name}
-                onChangeText={setName} autoCapitalize="words"
-              />
-            )}
-
-            <TextInput
-              style={styles.input} placeholder="Email address"
-              placeholderTextColor={COLORS.textMuted} value={email}
-              onChangeText={setEmail} keyboardType="email-address"
-              autoCapitalize="none" autoCorrect={false}
-            />
-
-            <View style={styles.passwordRow}>
-              <TextInput
-                style={[styles.input, styles.passwordInput]}
-                placeholder="Password" placeholderTextColor={COLORS.textMuted}
-                value={password} onChangeText={setPassword} secureTextEntry={!showPassword}
-              />
-              <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPassword(p => !p)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color={COLORS.textMuted} />
+            <View style={styles.togglePill}>
+              <TouchableOpacity
+                style={[styles.toggleOption, !isSignUp && styles.toggleOptionActive]}
+                onPress={() => setIsSignUp(false)}
+              >
+                <Text style={[styles.toggleText, !isSignUp && styles.toggleTextActive]}>Login</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.toggleOption, isSignUp && styles.toggleOptionActive]}
+                onPress={() => setIsSignUp(true)}
+              >
+                <Text style={[styles.toggleText, isSignUp && styles.toggleTextActive]}>Sign Up</Text>
               </TouchableOpacity>
             </View>
 
-            {isSignUp && (
-              <>
+            <Text style={styles.formTitle}>
+              {isSignUp ? 'Start your journey' : 'Welcome back'}
+            </Text>
+            <Text style={styles.formSubtitle}>
+              {isSignUp
+                ? 'A few basics to get started — you\'ll set up your profile next.'
+                : 'Sign in to continue where you left off.'}
+            </Text>
+
+            <>
+                {isSignUp && (
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Your name"
+                    placeholderTextColor={COLORS.textMuted}
+                    value={name}
+                    onChangeText={setName}
+                    autoCapitalize="words"
+                  />
+                )}
+
                 <TextInput
-                  style={styles.input} placeholder="Age"
-                  placeholderTextColor={COLORS.textMuted} value={age}
-                  onChangeText={setAge} keyboardType="numeric"
+                  style={styles.input}
+                  placeholder="Email address"
+                  placeholderTextColor={COLORS.textMuted}
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
                 />
-                <View style={styles.genderRow}>
-                  {(['male', 'female'] as const).map((g) => (
-                    <TouchableOpacity
-                      key={g}
-                      style={[styles.genderChip, gender === g && styles.genderChipActive]}
-                      onPress={() => setGender(g)}
-                    >
-                      <Text style={[styles.genderText, gender === g && styles.genderTextActive]}>
-                        {g.charAt(0).toUpperCase() + g.slice(1)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+
+                <View style={styles.passwordRow}>
+                  <TextInput
+                    style={[styles.input, styles.passwordInput]}
+                    placeholder="Password"
+                    placeholderTextColor={COLORS.textMuted}
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeBtn}
+                    onPress={() => setShowPassword((value) => !value)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color={COLORS.textMuted} />
+                  </TouchableOpacity>
                 </View>
-              </>
-            )}
+
+                {isSignUp && (
+                  <>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Age"
+                      placeholderTextColor={COLORS.textMuted}
+                      value={age}
+                      onChangeText={setAge}
+                      keyboardType="numeric"
+                    />
+                    <View style={styles.genderRow}>
+                      {(['male', 'female'] as const).map((value) => (
+                        <TouchableOpacity
+                          key={value}
+                          style={[styles.genderChip, gender === value && styles.genderChipActive]}
+                          onPress={() => setGender(value)}
+                        >
+                          <Text style={[styles.genderText, gender === value && styles.genderTextActive]}>
+                            {value.charAt(0).toUpperCase() + value.slice(1)}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </>
+                )}
+            </>
 
             <TouchableOpacity style={styles.primaryBtn} onPress={handleSubmit} disabled={loading} activeOpacity={0.85}>
               {loading
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={styles.primaryBtnText}>{isSignUp ? 'Create Account' : 'Login'}</Text>
-              }
+                : <Text style={styles.primaryBtnText}>{isSignUp ? 'Create Account' : 'Login'}</Text>}
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => setIsSignUp(p => !p)} style={styles.toggleRow} activeOpacity={0.7}>
-              <Text style={styles.toggleText}>
+            <TouchableOpacity
+              onPress={() => setIsSignUp((value) => !value)}
+              style={styles.toggleRow}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.togglePrompt}>
                 {isSignUp ? 'Already have an account? ' : 'New here? '}
                 <Text style={styles.toggleLink}>{isSignUp ? 'Login' : 'Sign Up'}</Text>
               </Text>
@@ -147,12 +202,24 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
   flex: { flex: 1 },
   scroll: { flexGrow: 1, justifyContent: 'center', padding: SPACING.lg },
-  logoArea: { alignItems: 'center', marginBottom: SPACING.xl },
-  logoIcon: { width: 120, height: 120, marginBottom: SPACING.sm },
-  tagline: { color: COLORS.textSecondary, fontSize: 13, marginTop: 4 },
+  hero: { alignItems: 'center', marginBottom: SPACING.xl },
+  logoStack: { alignItems: 'center', marginBottom: SPACING.sm },
+  logoIcon: { width: 88, height: 88, marginBottom: 2 },
+  brand: { color: COLORS.textPrimary, fontSize: 34, fontFamily: FONTS.displayBold },
+  tagline: { color: COLORS.textPrimary, fontSize: 15, fontFamily: FONTS.medium, marginTop: 6 },
+  subtag: { color: COLORS.textSecondary, fontSize: 12, marginTop: 6 },
   card: { backgroundColor: COLORS.card, borderRadius: BORDER_RADIUS.lg, padding: SPACING.lg, borderWidth: 1, borderColor: COLORS.cardBorder, marginBottom: SPACING.lg },
-  formTitle: { color: COLORS.textPrimary, fontSize: 22, fontWeight: '700', marginBottom: SPACING.lg },
+  togglePill: { flexDirection: 'row', backgroundColor: '#111', borderRadius: BORDER_RADIUS.full, padding: 4, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.cardBorder },
+  toggleOption: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: BORDER_RADIUS.full },
+  toggleOptionActive: { backgroundColor: COLORS.primary },
+  toggleText: { color: COLORS.textSecondary, fontSize: 13, fontFamily: FONTS.medium },
+  toggleTextActive: { color: '#fff' },
+  formTitle: { color: COLORS.textPrimary, fontSize: 22, fontFamily: FONTS.displayBold, marginBottom: 4 },
+  formSubtitle: { color: COLORS.textSecondary, fontSize: 13, marginBottom: SPACING.md, lineHeight: 19 },
+  backStepBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: SPACING.md },
+  backStepText: { color: COLORS.textSecondary, fontSize: 13, fontFamily: FONTS.medium },
   input: { backgroundColor: '#111', borderRadius: BORDER_RADIUS.md, paddingHorizontal: 16, paddingVertical: Platform.OS === 'ios' ? 15 : 13, color: COLORS.textPrimary, fontSize: 15, marginBottom: 12, borderWidth: 1, borderColor: COLORS.cardBorder },
+  multilineInput: { minHeight: 88, textAlignVertical: 'top' },
   passwordRow: { position: 'relative', marginBottom: 12 },
   passwordInput: { marginBottom: 0, paddingRight: 48 },
   eyeBtn: { position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' },
@@ -162,10 +229,10 @@ const styles = StyleSheet.create({
   genderText: { color: COLORS.textSecondary, fontWeight: '600', fontSize: 14 },
   genderTextActive: { color: '#fff' },
   primaryBtn: { backgroundColor: COLORS.primary, borderRadius: BORDER_RADIUS.md, paddingVertical: 16, alignItems: 'center', marginTop: 4 },
-  primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.2 },
+  primaryBtnText: { color: '#fff', fontSize: 16, fontFamily: FONTS.semiBold, letterSpacing: 0.2 },
   toggleRow: { alignItems: 'center', marginTop: SPACING.md, paddingVertical: 4 },
-  toggleText: { color: COLORS.textSecondary, fontSize: 14 },
-  toggleLink: { color: COLORS.primary, fontWeight: '600' },
+  togglePrompt: { color: COLORS.textSecondary, fontSize: 14 },
+  toggleLink: { color: COLORS.primary, fontFamily: FONTS.semiBold },
   demoBtn: { alignItems: 'center', paddingVertical: 14 },
   demoBtnText: { color: COLORS.textMuted, fontSize: 13, textDecorationLine: 'underline' },
 });

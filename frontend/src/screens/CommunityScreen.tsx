@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, BORDER_RADIUS, SPACING } from '../theme';
+import { COLORS, BORDER_RADIUS, SPACING, FONTS } from '../theme';
 import type { CommunityPost } from '../types';
+import CrimsonGlow from '../components/CrimsonGlow';
 
 const COMMUNITY_POSTS: CommunityPost[] = [
   { id: '1', type: 'success_story', title: 'We met on Gostart 💛', body: '"We matched in December, went on our first date at a café, and now we\'re planning our first trip together. Gostart really works!"', author: 'Priya & Rohan', emoji: '💑', likes: 247 },
@@ -13,17 +13,21 @@ const COMMUNITY_POSTS: CommunityPost[] = [
 ];
 
 export default function CommunityScreen() {
-  const insets = useSafeAreaInsets();
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>(
     Object.fromEntries(COMMUNITY_POSTS.map((p) => [p.id, p.likes])),
   );
+  const [liked, setLiked] = useState<Record<string, boolean>>({});
 
-  const toggleLike = (id: string) =>
+  const toggleLike = (id: string) => {
+    if (liked[id]) return; // already liked — no-op
+    setLiked((prev) => ({ ...prev, [id]: true }));
     setLikeCounts((prev) => ({ ...prev, [id]: prev[id] + 1 }));
+  };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <CrimsonGlow />
       <View>
         <Text style={styles.title}>Community</Text>
         <Text style={styles.subtitle}>Stories, tips & love in the making</Text>
@@ -43,9 +47,15 @@ export default function CommunityScreen() {
             </View>
             <Text style={styles.cardTitle}>{post.title}</Text>
             <Text style={styles.cardBody}>{post.body}</Text>
-            <TouchableOpacity style={styles.likeRow} onPress={() => toggleLike(post.id)}>
-              <Ionicons name="heart-outline" size={16} color={COLORS.textSecondary} />
-              <Text style={styles.likeCount}>{likeCounts[post.id]}</Text>
+            <TouchableOpacity style={styles.likeRow} onPress={() => toggleLike(post.id)} activeOpacity={liked[post.id] ? 1 : 0.7}>
+              <Ionicons
+                name={liked[post.id] ? 'heart' : 'heart-outline'}
+                size={16}
+                color={liked[post.id] ? COLORS.primary : COLORS.textSecondary}
+              />
+              <Text style={[styles.likeCount, liked[post.id] && { color: COLORS.primary }]}>
+                {likeCounts[post.id]}
+              </Text>
             </TouchableOpacity>
           </View>
         ))}
@@ -56,10 +66,10 @@ export default function CommunityScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  title: { color: COLORS.textPrimary, fontSize: 28, fontWeight: '800', paddingHorizontal: SPACING.lg, paddingTop: SPACING.md },
-  subtitle: { color: COLORS.textSecondary, fontSize: 13, paddingHorizontal: SPACING.lg, marginBottom: SPACING.md },
-  scroll: { paddingHorizontal: SPACING.lg },
+  container: { flex: 1, backgroundColor: COLORS.background, paddingTop: 30 },
+  title: { color: COLORS.textPrimary, fontSize: 24, fontFamily: FONTS.displayBold, paddingHorizontal: 24, paddingTop: 0 },
+  subtitle: { color: COLORS.textSecondary, fontSize: 13, paddingHorizontal: 24, marginBottom: 40 },
+  scroll: { paddingHorizontal: 24 },
   card: { backgroundColor: COLORS.card, borderRadius: BORDER_RADIUS.lg, padding: SPACING.lg, marginBottom: SPACING.md, borderWidth: 1, borderColor: COLORS.cardBorder },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: SPACING.sm },
   emojiCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.08)', justifyContent: 'center', alignItems: 'center' },

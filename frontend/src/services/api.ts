@@ -8,7 +8,7 @@
 //   Real device:      http://<your-local-IP>:3001/api
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Filters, User, Profile, Message, Conversation, FullConversation, CreditPackage } from '../types';
+import type { Filters, User, Profile, Message, Conversation, FullConversation, CreditPackage, MatchSummary } from '../types';
 
 export const BASE_URL = 'http://localhost:3001/api';
 
@@ -55,6 +55,28 @@ interface StartConversationResponse extends ApiSuccess {
 
 interface ConversationsResponse extends ApiSuccess {
   conversations: Conversation[];
+}
+
+interface MyMatchesResponse extends ApiSuccess {
+  matches: MatchSummary[];
+}
+
+// Profile fields the onboarding flow can save
+export interface ProfileInput {
+  name?: string;
+  age?: number;
+  gender?: string;
+  city?: string;
+  height?: string;
+  religion?: string;
+  profession?: string;
+  college?: string;
+  about?: string;
+  tags?: string[];
+  weekendVibe?: string;
+  firstDateIdea?: string;
+  loveLanguage?: string;
+  photo?: string;
 }
 
 interface ConversationResponse extends ApiSuccess {
@@ -121,15 +143,36 @@ export const registerUser = (
   password: string,
   age: number,
   gender: string,
+  profile: {
+    city?: string;
+    height?: string;
+    religion?: string;
+    profession?: string;
+    college?: string;
+    about?: string;
+    tags?: string[];
+    weekendVibe?: string;
+    firstDateIdea?: string;
+    loveLanguage?: string;
+    photo?: string;
+  } = {},
 ) =>
   apiFetch<AuthResponse>('/auth/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, email, password, age, gender }),
+    body: JSON.stringify({ name, email, password, age, gender, ...profile }),
   });
 
 export const getMe = async () =>
   apiFetch<MeResponse>('/auth/me', { headers: await authHeaders() });
+
+// Save full profile (onboarding) — marks onboarding complete server-side
+export const saveProfile = async (profile: ProfileInput) =>
+  apiFetch<MeResponse>('/auth/profile', {
+    method: 'PUT',
+    headers: await authHeaders(),
+    body: JSON.stringify(profile),
+  });
 
 // ── Credits ────────────────────────────────────────────────────────────────────
 
@@ -186,6 +229,9 @@ export const startConversation = async (profileId: string) =>
     headers: await authHeaders(),
     body: JSON.stringify({ profileId }),
   });
+
+export const getMyMatches = async () =>
+  apiFetch<MyMatchesResponse>('/matches/my-matches', { headers: await authHeaders() });
 
 // ── Messages ───────────────────────────────────────────────────────────────────
 

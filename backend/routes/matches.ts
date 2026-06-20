@@ -157,18 +157,26 @@ router.post('/start-conversation', authMiddleware, async (req: Request, res: Res
     const profile = await Profile.findById(profileId);
     if (!profile) { res.status(404).json({ success: false, message: 'Profile not found.' }); return; }
 
-    // Deduct the credit atomically using findByIdAndUpdate (avoids race conditions)
     await User.findByIdAndUpdate(userId, { $inc: { credits: -1 } });
 
-    // Create (or reuse) the conversation — findOneAndUpdate with upsert is atomic
+    const chatId = [userId, profileId].sort().join('_');
     const conversationId = uuidv4();
     const conversation = await Conversation.findOneAndUpdate(
       { userId, profileId },
-      { $setOnInsert: { _id: conversationId, userId, profileId } },
+      { $setOnInsert: { _id: conversationId, userId, profileId, chatId } },
       { upsert: true, new: true },
     );
 
-    // Re-read credits so the response has the accurate new balance
+    const userProfile = await Profile.findById(userId);
+    if (userProfile) {
+      const mirrorId = uuidv4();
+      await Conversation.findOneAndUpdate(
+        { userId: profileId, profileId: userId },
+        { $setOnInsert: { _id: mirrorId, userId: profileId, profileId: userId, chatId } },
+        { upsert: true, new: true },
+      );
+    }
+
     const updatedUser = await User.findById(userId).select('credits');
 
     res.json({
@@ -180,6 +188,32 @@ router.post('/start-conversation', authMiddleware, async (req: Request, res: Res
     });
   } catch (err) {
     console.error('Start conversation error:', err);
+    res.status(500).json({ success: false, message: 'Something went wrong.' });
+  }
+});
+
+// GET /api/matches/my-matches — every profile the user has connected with,
+// returned with full profile details + the conversationId so the frontend
+// carousel can jump straight into the chat.
+router.get('/my-matches', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { userId } = (req as AuthenticatedRequest).user;
+
+    const convos = await Conversation.find({ userId }).sort({ createdAt: -1 });
+
+    const matches = (
+      await Promise.all(
+        convos.map(async (conv) => {
+          const profile = await Profile.findById(conv.profileId);
+          if (!profile) return null;
+          return { conversationId: conv._id, profile: toProfileResponse(profile) };
+        }),
+      )
+    ).filter((m): m is { conversationId: string; profile: ProfileResponse } => m !== null);
+
+    res.json({ success: true, matches });
+  } catch (err) {
+    console.error('My matches error:', err);
     res.status(500).json({ success: false, message: 'Something went wrong.' });
   }
 });

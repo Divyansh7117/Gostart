@@ -1,14 +1,3 @@
-// ====================================================================
-// Messages Routes — list chats, fetch history, send a message
-//
-// DATA MODEL:
-//   Conversation  →  one doc per user↔profile pair
-//   Message       →  one doc per bubble, indexed by conversationId
-//
-// Fetching conversations uses a populate() call to join with Profile
-// so the frontend gets the name/photo without a second request.
-// ====================================================================
-
 import { Router, Request, Response } from 'express';
 import { Conversation } from '../models/Conversation';
 import { Message } from '../models/Message';
@@ -17,19 +6,16 @@ import { authMiddleware, AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
 
-// GET /api/messages — list all conversations for the logged-in user
 router.get('/', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId } = (req as AuthenticatedRequest).user;
 
-    // Find all conversations, populate the profile info alongside
     const convos = await Conversation.find({ userId }).sort({ createdAt: -1 });
 
-    // For each conversation, grab the latest message
     const result = await Promise.all(
       convos.map(async (conv) => {
         const profile = await Profile.findById(conv.profileId).select('name age city photo verified');
-        const lastMessage = await Message.findOne({ conversationId: conv._id }).sort({ timestamp: -1 });
+        const lastMessage = await Message.findOne({ chatId: conv.chatId }).sort({ timestamp: -1 });
 
         return {
           id: conv._id,
@@ -44,7 +30,6 @@ router.get('/', authMiddleware, async (req: Request, res: Response): Promise<voi
       }),
     );
 
-    // Sort by most recent message (conversations with no messages fall to the bottom)
     result.sort((a, b) => {
       const aTime = a.lastMessage ? new Date(a.lastMessage.timestamp).getTime() : 0;
       const bTime = b.lastMessage ? new Date(b.lastMessage.timestamp).getTime() : 0;
@@ -58,7 +43,6 @@ router.get('/', authMiddleware, async (req: Request, res: Response): Promise<voi
   }
 });
 
-// GET /api/messages/:conversationId — full message history for one chat
 router.get('/:conversationId', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const { conversationId } = req.params;
@@ -69,7 +53,7 @@ router.get('/:conversationId', authMiddleware, async (req: Request, res: Respons
     if (conv.userId !== userId) { res.status(403).json({ success: false, message: "You're not part of this conversation." }); return; }
 
     const profile = await Profile.findById(conv.profileId);
-    const messages = await Message.find({ conversationId }).sort({ timestamp: 1 });
+    const messages = await Message.find({ chatId: conv.chatId }).sort({ timestamp: 1 });
 
     res.json({
       success: true,
@@ -94,7 +78,6 @@ router.get('/:conversationId', authMiddleware, async (req: Request, res: Respons
   }
 });
 
-// POST /api/messages/:conversationId/send — save a new message to MongoDB
 router.post('/:conversationId/send', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const { conversationId } = req.params;
@@ -111,6 +94,7 @@ router.post('/:conversationId/send', authMiddleware, async (req: Request, res: R
     if (conv.userId !== userId) { res.status(403).json({ success: false, message: "You're not part of this conversation." }); return; }
 
     const newMessage = await Message.create({
+      chatId: conv.chatId,
       conversationId,
       senderId: userId,
       text: text.trim(),

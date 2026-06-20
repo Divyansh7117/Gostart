@@ -5,6 +5,7 @@ import type { StackScreenProps } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, BORDER_RADIUS, SPACING, FONTS } from '../theme';
 import type { FindMatchStackParamList } from '../types';
+import CrimsonGlow from '../components/CrimsonGlow';
 
 type Props = StackScreenProps<FindMatchStackParamList, 'NoMatch'>;
 
@@ -13,6 +14,7 @@ export default function NoMatchScreen({ navigation }: Props) {
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom + SPACING.lg }]}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <CrimsonGlow />
       <View style={styles.content}>
         <Image
           source={require('../../assets/icons/Nomatchsearchicon.png')}

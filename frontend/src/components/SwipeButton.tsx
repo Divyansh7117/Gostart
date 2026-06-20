@@ -26,7 +26,8 @@ interface SwipeButtonProps {
 
 const THUMB_SIZE = 56;
 const BAR_HEIGHT = 64;
-const BAR_WIDTH = Dimensions.get('window').width - 48;
+const screenWidth = Dimensions.get('window').width;
+const BAR_WIDTH = Math.min(screenWidth - 48, 400);
 
 export default function SwipeButton({
   onSwipe,
@@ -127,7 +128,9 @@ export default function SwipeButton({
 
 const styles = StyleSheet.create({
   container: {
-    width: BAR_WIDTH,
+    width: '100%',
+    maxWidth: BAR_WIDTH,
+    alignSelf: 'center' as const,
     height: BAR_HEIGHT,
     borderRadius: BORDER_RADIUS.full,
     justifyContent: 'center',

@@ -6,9 +6,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { StackScreenProps } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, BORDER_RADIUS, SPACING } from '../theme';
+import { COLORS, BORDER_RADIUS, SPACING, FONTS } from '../theme';
 import { getConversations } from '../services/api';
 import type { Conversation, MessagesStackParamList } from '../types';
+import CrimsonGlow from '../components/CrimsonGlow';
 
 type Props = StackScreenProps<MessagesStackParamList, 'MessagesList'>;
 
@@ -61,10 +62,19 @@ export default function MessagesScreen({ navigation }: Props) {
   );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <CrimsonGlow />
       <View style={styles.header}>
         <Text style={styles.title}>Messages</Text>
+        <TouchableOpacity
+          style={styles.galleryBtn}
+          onPress={() => navigation.navigate('MatchesCarousel')}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="albums-outline" size={18} color={COLORS.textPrimary} />
+          <Text style={styles.galleryBtnText}>Matches</Text>
+        </TouchableOpacity>
       </View>
 
       {loading ? (
@@ -89,10 +99,12 @@ export default function MessagesScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  header: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.md, paddingBottom: SPACING.sm },
-  title: { color: COLORS.textPrimary, fontSize: 28, fontWeight: '800' },
-  list: { paddingHorizontal: SPACING.lg, paddingBottom: 140 },
+  container: { flex: 1, backgroundColor: COLORS.background, paddingTop: 30 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 0, paddingBottom: 40 },
+  title: { color: COLORS.textPrimary, fontSize: 24, fontFamily: FONTS.displayBold },
+  galleryBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: BORDER_RADIUS.full, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: COLORS.cardBorder },
+  galleryBtnText: { color: COLORS.textPrimary, fontSize: 13, fontFamily: FONTS.medium },
+  list: { paddingHorizontal: 24, paddingBottom: 140 },
   row: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.cardBorder },
   avatarWrapper: { position: 'relative' },
   avatar: { width: 56, height: 56, borderRadius: 28 },
@@ -104,6 +116,6 @@ const styles = StyleSheet.create({
   timestamp: { color: COLORS.textMuted, fontSize: 12 },
   lastMessage: { color: COLORS.textSecondary, fontSize: 14 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: SPACING.sm },
-  emptyTitle: { color: COLORS.textPrimary, fontSize: 18, fontWeight: '700', marginTop: SPACING.md },
+  emptyTitle: { color: COLORS.textPrimary, fontSize: 18, fontFamily: FONTS.displayBold, marginTop: SPACING.md },
   emptyText: { color: COLORS.textSecondary, fontSize: 14 },
 });

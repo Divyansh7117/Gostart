@@ -3,7 +3,6 @@ import {
   View, Text, StyleSheet, ActivityIndicator,
   TouchableOpacity, Image,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -15,6 +14,7 @@ import type {
   RootStackParamList,
   FindMatchStackParamList,
   MessagesStackParamList,
+  ProfileStackParamList,
   MainTabParamList,
 } from '../types';
 
@@ -24,14 +24,23 @@ import NoMatchScreen from '../screens/NoMatchScreen';
 import MatchRevealedScreen from '../screens/MatchRevealedScreen';
 import MessagesScreen from '../screens/MessagesScreen';
 import ChatScreen from '../screens/ChatScreen';
+import MatchProfileScreen from '../screens/MatchProfileScreen';
 import CommunityScreen from '../screens/CommunityScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import BuyCreditsScreen from '../screens/BuyCreditsScreen';
 import LoginScreen from '../screens/LoginScreen';
+import OnboardingScreen from '../screens/OnboardingScreen';
+import MatchesCarouselScreen from '../screens/MatchesCarouselScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
+import PrivacyScreen from '../screens/PrivacyScreen';
+import HelpSupportScreen from '../screens/HelpSupportScreen';
+import TermsScreen from '../screens/TermsScreen';
+import EditProfileScreen from '../screens/EditProfileScreen';
 
 const RootStack = createStackNavigator<RootStackParamList>();
 const FindMatchStack = createStackNavigator<FindMatchStackParamList>();
 const MessagesStack = createStackNavigator<MessagesStackParamList>();
+const ProfileStack = createStackNavigator<ProfileStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 const GoStartTheme = {
@@ -67,8 +76,22 @@ const FindMatchNavigator = () => (
 const MessagesNavigator = () => (
   <MessagesStack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: COLORS.background } }}>
     <MessagesStack.Screen name="MessagesList" component={MessagesScreen} />
+    <MessagesStack.Screen name="MatchesCarousel" component={MatchesCarouselScreen} />
     <MessagesStack.Screen name="Chat" component={ChatScreen} />
+    <MessagesStack.Screen name="MatchProfile" component={MatchProfileScreen} />
   </MessagesStack.Navigator>
+);
+
+const ProfileNavigator = () => (
+  <ProfileStack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: COLORS.background } }}>
+    <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} />
+    <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} />
+    <ProfileStack.Screen name="BuyCreditsProfile" component={BuyCreditsScreen} />
+    <ProfileStack.Screen name="Notifications" component={NotificationsScreen} />
+    <ProfileStack.Screen name="Privacy" component={PrivacyScreen} />
+    <ProfileStack.Screen name="HelpSupport" component={HelpSupportScreen} />
+    <ProfileStack.Screen name="Terms" component={TermsScreen} />
+  </ProfileStack.Navigator>
 );
 
 // ── Custom tab bar ─────────────────────────────────────────────────────────────
@@ -90,10 +113,10 @@ const TABS: TabConfig[] = [
   { name: 'ProfileTab',   label: 'Profile',    icon: require('../../assets/icons/profile.png') },
 ];
 
-// Total container = 15px top gap + 84px pill + bottom inset
+// Total container = 15px top gap + 84px pill
 const PILL_TOP   = 15;
 const PILL_HEIGHT = 84;
-const CONTAINER_HEIGHT = PILL_TOP + PILL_HEIGHT; // 99px (matches Figma)
+const CONTAINER_HEIGHT = PILL_TOP + PILL_HEIGHT;
 
 function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
@@ -132,18 +155,14 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
                 onPress={onPress}
                 activeOpacity={0.8}
               >
-                <LinearGradient
-                  colors={['rgba(113,0,20,1)', 'rgba(215,0,38,1)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.findMatchCircle}
-                >
+                <View style={styles.findMatchCircle}>
+                  <View style={styles.findMatchHighlight} />
                   <Image
                     source={require('../../assets/icons/Logomark.png')}
                     style={styles.logomarkIcon}
                     resizeMode="contain"
                   />
-                </LinearGradient>
+                </View>
                 <Text style={styles.findMatchLabel}>{tab.label}</Text>
               </TouchableOpacity>
             );
@@ -158,12 +177,13 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
             >
               <Image
                 source={tab.icon}
-                style={[styles.tabIcon, { opacity: focused ? 1 : 0.45 }]}
+                style={[styles.tabIcon, { opacity: focused ? 1 : 0.45, tintColor: focused ? '#F2F1ED' : undefined }]}
                 resizeMode="contain"
               />
               <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>
                 {tab.label}
               </Text>
+              {focused && <View style={styles.activeDot} />}
             </TouchableOpacity>
           );
         })}
@@ -182,14 +202,14 @@ const MainTabNavigator = () => (
     <Tab.Screen name="FindMatchTab"  component={FindMatchNavigator} />
     <Tab.Screen name="MessagesTab"   component={MessagesNavigator} />
     <Tab.Screen name="CommunityTab"  component={CommunityScreen} />
-    <Tab.Screen name="ProfileTab"    component={ProfileScreen} />
+    <Tab.Screen name="ProfileTab"    component={ProfileNavigator} />
   </Tab.Navigator>
 );
 
 // ── Root navigator ─────────────────────────────────────────────────────────────
 
 export default function AppNavigator() {
-  const { isLoggedIn, isLoading } = useApp();
+  const { isLoggedIn, isLoading, needsOnboarding } = useApp();
 
   if (isLoading) {
     return (
@@ -204,7 +224,9 @@ export default function AppNavigator() {
       <RootStack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: COLORS.background } }}>
         {!isLoggedIn
           ? <RootStack.Screen name="Login" component={LoginScreen} />
-          : <RootStack.Screen name="Main" component={MainTabNavigator} />
+          : needsOnboarding
+            ? <RootStack.Screen name="Onboarding" component={OnboardingScreen} />
+            : <RootStack.Screen name="Main" component={MainTabNavigator} />
         }
       </RootStack.Navigator>
     </NavigationContainer>
@@ -220,6 +242,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+    height: CONTAINER_HEIGHT,
   },
 
   // The floating dark pill (84px tall, starts 15px from top of container)
@@ -255,33 +278,50 @@ const styles = StyleSheet.create({
   // ── Find Match (primary elevated tab) ───────────────────────────────────────
   findMatchItem: {
     width: 78,
-    height: 86,         // taller than pill → icon pops above
+    height: 86.5,
     alignItems: 'center',
     justifyContent: 'flex-end',
+    paddingLeft: 12,
+    paddingRight: 12,
+    paddingBottom: 12.5,
     gap: 4,
-    paddingBottom: 12,
   },
   findMatchCircle: {
-    width: 54,
-    height: 54,
-    borderRadius: 44,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#710014',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: 'rgba(0,0,0,1)',
-    shadowOffset: { width: 5, height: 2 },
-    shadowRadius: 8.7,
-    shadowOpacity: 0.25,
-    elevation: 10,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 100, 100, 0.25)',
+    shadowColor: '#7B0D1E',
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 14,
+    shadowOpacity: 0.85,
+    elevation: 14,
+  },
+  findMatchHighlight: {
+    position: 'absolute',
+    top: 3,
+    left: 5,
+    right: 5,
+    height: 14,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
   },
   logomarkIcon: {
-    width: 24,
-    height: 24,
+    width: 28,
+    height: 28,
+    tintColor: '#F2F1ED',
   },
   findMatchLabel: {
     fontSize: 12,
     lineHeight: 16,
     fontFamily: 'Outfit_500Medium',
     color: '#F2F1ED',
+    textAlign: 'center',
   },
 
   // ── Regular tabs ────────────────────────────────────────────────────────────
@@ -306,6 +346,13 @@ const styles = StyleSheet.create({
   tabLabelActive: {
     color: '#F2F1ED',
     fontFamily: 'Outfit_500Medium',
+  },
+  activeDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#F2F1ED',
+    marginTop: 2,
   },
 
   loading: {

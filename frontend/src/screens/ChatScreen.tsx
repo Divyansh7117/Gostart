@@ -1,5 +1,3 @@
-// Chat screen — optimistic message sends, typed route params.
-
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
@@ -12,6 +10,7 @@ import { COLORS, BORDER_RADIUS, SPACING } from '../theme';
 import { getConversation, sendMessage } from '../services/api';
 import { useApp } from '../context/AppContext';
 import type { Message, MessagesStackParamList } from '../types';
+import CrimsonGlow from '../components/CrimsonGlow';
 
 type Props = StackScreenProps<MessagesStackParamList, 'Chat'>;
 
@@ -24,13 +23,19 @@ export default function ChatScreen({ navigation, route }: Props) {
   const [sending, setSending] = useState(false);
   const flatListRef = useRef<FlatList<Message>>(null);
 
-  useEffect(() => { loadMessages(); }, []);
+  useEffect(() => {
+    loadMessages();
+    const interval = setInterval(loadMessages, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   const loadMessages = async () => {
     try {
       const data = await getConversation(conversationId);
       if (data.success) setMessages(data.conversation.messages);
-    } catch { /* silent fail — show empty chat */ }
+    } catch {
+      /* silent fail */
+    }
   };
 
   const handleSend = async () => {
@@ -38,7 +43,6 @@ export default function ChatScreen({ navigation, route }: Props) {
     if (!text) return;
     setInputText('');
 
-    // Optimistic update — show message instantly without waiting for the server
     const optimistic: Message = {
       id: `local_${Date.now()}`,
       senderId: user?.id ?? 'user_demo',
@@ -49,9 +53,13 @@ export default function ChatScreen({ navigation, route }: Props) {
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
 
     setSending(true);
-    try { await sendMessage(conversationId, text); }
-    catch { /* optimistic message stays — in prod we'd mark it as failed */ }
-    finally { setSending(false); }
+    try {
+      await sendMessage(conversationId, text);
+    } catch {
+      /* optimistic message stays */
+    } finally {
+      setSending(false);
+    }
   };
 
   const isMyMessage = (msg: Message) => msg.senderId === (user?.id ?? 'user_demo');
@@ -77,15 +85,23 @@ export default function ChatScreen({ navigation, route }: Props) {
       keyboardVerticalOffset={insets.top}
     >
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <CrimsonGlow />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
         </TouchableOpacity>
-        <Image source={{ uri: match.photo }} style={styles.headerAvatar} />
-        <View style={styles.headerInfo}>
-          <Text style={styles.headerName}>{match.name}, {match.age}</Text>
-          <Text style={styles.headerSub}>{match.city} · {match.distance}</Text>
-        </View>
+        <TouchableOpacity
+          style={styles.profileTrigger}
+          onPress={() => navigation.navigate('MatchProfile', { profile: match })}
+          activeOpacity={0.8}
+        >
+          <Image source={{ uri: match.photo }} style={styles.headerAvatar} />
+          <View style={styles.headerInfo}>
+            <Text style={styles.headerName}>{match.name}, {match.age}</Text>
+            <Text style={styles.headerSub}>{match.city} · {match.distance}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+        </TouchableOpacity>
       </View>
 
       <FlatList
@@ -122,8 +138,9 @@ export default function ChatScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderBottomWidth: 1, borderBottomColor: COLORS.cardBorder, gap: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderBottomWidth: 1, borderBottomColor: COLORS.cardBorder },
   backBtn: { padding: 4 },
+  profileTrigger: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
   headerAvatar: { width: 44, height: 44, borderRadius: 22 },
   headerInfo: { flex: 1 },
   headerName: { color: COLORS.textPrimary, fontSize: 16, fontWeight: '700' },

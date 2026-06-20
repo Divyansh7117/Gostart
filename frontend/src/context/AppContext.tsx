@@ -20,8 +20,10 @@ interface AppContextValue {
   filters: Filters;
   isLoggedIn: boolean;
   isLoading: boolean;
+  needsOnboarding: boolean;
   login: (user: User, token: string) => Promise<void>;
   logout: () => Promise<void>;
+  setUser: (user: User) => void;
   deductCredit: () => void;
   addCredits: (amount: number) => void;
   updateFilters: (f: Filters) => void;
@@ -101,6 +103,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const updateFilters = (f: Filters): void => setFilters(f);
 
+  // Logged in but profile not yet completed → must go through onboarding first
+  const needsOnboarding = isLoggedIn && !!user && user.onboardingComplete === false;
+
   return (
     <AppContext.Provider
       value={{
@@ -109,8 +114,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         filters,
         isLoggedIn,
         isLoading,
+        needsOnboarding,
         login,
         logout,
+        setUser,
         deductCredit,
         addCredits,
         updateFilters,

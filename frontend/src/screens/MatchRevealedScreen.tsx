@@ -1,5 +1,3 @@
-// Match Revealed — shows full profile, modal confirmation before spending 1 credit.
-
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
@@ -14,6 +12,7 @@ import { COLORS, BORDER_RADIUS, SPACING, FONTS } from '../theme';
 import { startConversation } from '../services/api';
 import { useApp } from '../context/AppContext';
 import type { FindMatchStackParamList } from '../types';
+import CrimsonGlow from '../components/CrimsonGlow';
 
 type Props = StackScreenProps<FindMatchStackParamList, 'MatchRevealed'>;
 
@@ -42,7 +41,6 @@ export default function MatchRevealedScreen({ navigation, route }: Props) {
       if (data.success) {
         deductCredit();
         setShowConfirmModal(false);
-        // Navigate to the chat inside the Messages tab
         navigation.getParent()?.navigate('MessagesTab', {
           screen: 'Chat',
           params: { conversationId: data.conversationId, match },
@@ -58,12 +56,17 @@ export default function MatchRevealedScreen({ navigation, route }: Props) {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-      <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
-        {/* Hero photo — full bleed, gradient fades to background */}
+      <CrimsonGlow />
+      <ScrollView showsVerticalScrollIndicator={false} bounces={false} contentContainerStyle={{ paddingBottom: insets.bottom + 130 }}>
+        {/* Hero — blurred photo + Logomark + "Your Match" */}
         <View style={styles.heroArea}>
-          <Image source={{ uri: match.photo }} style={styles.heroImage} resizeMode="cover" />
-          <LinearGradient colors={['transparent', 'rgba(10,10,10,0.6)', '#0A0A0A']} style={styles.heroGradient} />
-          {/* Back button floated over hero */}
+          <Image source={{ uri: match.photo }} style={styles.heroImage} resizeMode="cover" blurRadius={20} />
+          <LinearGradient
+            colors={['rgba(10,10,10,0.3)', 'rgba(10,10,10,0.6)', '#0A0A0A']}
+            locations={[0, 0.7, 1]}
+            style={StyleSheet.absoluteFill}
+          />
+
           <TouchableOpacity
             style={[styles.backBtn, { top: insets.top + SPACING.sm }]}
             onPress={() => navigation.goBack()}
@@ -71,13 +74,14 @@ export default function MatchRevealedScreen({ navigation, route }: Props) {
           >
             <Ionicons name="chevron-back" size={24} color="#fff" />
           </TouchableOpacity>
-          <View style={[styles.matchOverlay, { top: insets.top + SPACING.sm }]}>
-            <Ionicons name="heart" size={20} color={COLORS.gold} />
-            <Text style={styles.matchLabel}>Your Match</Text>
+
+          <View style={styles.heroCenter}>
+            <Image source={require('../../assets/icons/Logomark.png')} style={styles.heroLogo} resizeMode="contain" />
+            <Text style={styles.heroTitle}>Your Match</Text>
           </View>
         </View>
 
-        {/* Profile details */}
+        {/* Details card */}
         <View style={styles.detailsCard}>
           <View style={styles.nameRow}>
             <Text style={styles.name}>{match.name}, {match.age}</Text>
@@ -133,7 +137,6 @@ export default function MatchRevealedScreen({ navigation, route }: Props) {
         </View>
       </ScrollView>
 
-      {/* Confirmation modal */}
       <Modal transparent visible={showConfirmModal} animationType="fade">
         <BlurView intensity={30} style={styles.modalOverlay}>
           <View style={[styles.modalCard, { paddingBottom: insets.bottom + SPACING.lg }]}>
@@ -167,25 +170,36 @@ export default function MatchRevealedScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  heroArea: { height: 350, position: 'relative' },
+  heroArea: { height: 320, position: 'relative', overflow: 'hidden' },
   heroImage: { width: '100%', height: '100%' },
-  heroGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 150 },
-  backBtn: { position: 'absolute', left: SPACING.md, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', alignItems: 'center' },
-  matchOverlay: { position: 'absolute', alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6 },
-  matchLabel: { color: COLORS.textPrimary, fontSize: 18, fontWeight: '700' },
-  detailsCard: { backgroundColor: COLORS.background, paddingHorizontal: SPACING.lg, paddingTop: SPACING.md, paddingBottom: SPACING.xxl },
+  backBtn: { position: 'absolute', left: SPACING.md, width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', zIndex: 10 },
+  heroCenter: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', gap: 8 },
+  heroLogo: { width: 80, height: 80 },
+  heroTitle: { color: COLORS.textPrimary, fontSize: 38, fontFamily: FONTS.displayBold, letterSpacing: 0.5 },
+
+  detailsCard: {
+    backgroundColor: COLORS.card,
+    marginHorizontal: SPACING.md,
+    marginTop: -20,
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+  },
   nameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  name: { color: COLORS.textPrimary, fontSize: 28, fontFamily: FONTS.displayBold },
-  verifiedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: COLORS.card, borderRadius: BORDER_RADIUS.full, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: COLORS.cardBorder },
+  name: { color: COLORS.textPrimary, fontSize: 26, fontFamily: FONTS.displayBold },
+  verifiedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(180,142,111,0.16)', borderRadius: BORDER_RADIUS.full, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: 'rgba(180,142,111,0.4)' },
   verifiedIcon: { width: 14, height: 14 },
-  verifiedText: { color: COLORS.textSecondary, fontSize: 12, fontWeight: '500' },
+  verifiedText: { color: '#B48E6F', fontSize: 12, fontWeight: '500' },
   location: { color: COLORS.textSecondary, fontSize: 14, marginBottom: 8 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: SPACING.lg },
   metaText: { color: COLORS.textSecondary, fontSize: 13 },
   sectionLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, marginBottom: 8 },
   aboutText: { color: COLORS.textPrimary, fontSize: 15, lineHeight: 22, marginBottom: SPACING.md },
   tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: SPACING.lg },
-  tag: { backgroundColor: COLORS.card, borderRadius: BORDER_RADIUS.full, paddingHorizontal: 14, paddingVertical: 7, borderWidth: 1, borderColor: COLORS.cardBorder },
+  tag: { backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: BORDER_RADIUS.full, paddingHorizontal: 14, paddingVertical: 7, borderWidth: 1, borderColor: COLORS.cardBorder },
   tagText: { color: COLORS.textPrimary, fontSize: 13 },
   lifestyleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12 },
   lifestyleKey: { color: COLORS.textSecondary, fontSize: 14 },

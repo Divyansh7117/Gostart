@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, BORDER_RADIUS, FONTS } from '../theme';
+import { FONTS } from '../theme';
 import { useApp } from '../context/AppContext';
 
 interface CreditsWidgetProps {
@@ -10,61 +10,57 @@ interface CreditsWidgetProps {
 
 export default function CreditsWidget({ onPress }: CreditsWidgetProps) {
   const { credits } = useApp();
-  const isLow = credits === 0;
 
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={[styles.container, isLow && styles.containerLow]}
-      activeOpacity={0.8}
-    >
-      <View style={styles.coinCircle}>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={styles.touchWrap}>
+      <View style={styles.container}>
         <Image
           source={require('../../assets/icons/credits coin.png')}
           style={styles.coinIcon}
           resizeMode="contain"
         />
+        <View style={styles.textBlock}>
+          <Text style={styles.label}>Credits Left</Text>
+          <Text style={styles.count}>{credits}</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={14} color="#B8B8B8" />
       </View>
-
-      <View style={styles.textBlock}>
-        <Text style={styles.label}>Credits Left</Text>
-        <Text style={[styles.count, isLow && styles.countLow]}>{credits}</Text>
-      </View>
-
-      <Ionicons name="chevron-forward" size={16} color={COLORS.textSecondary} />
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
+  touchWrap: {
+    borderRadius: 12,
+    // no fixed width — sizes to content
+  },
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(30, 30, 30, 0.95)',
-    borderRadius: BORDER_RADIUS.xl,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: '#2E2E2E',
+    backgroundColor: 'rgba(180, 142, 111, 0.16)',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingLeft: 8,
+    paddingRight: 10,
+    gap: 4,
   },
-  containerLow: { borderColor: COLORS.error },
-  coinCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(201, 168, 76, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+  coinIcon: {
+    width: 36,
+    height: 36,
   },
-  coinIcon: { width: 16, height: 16 },
-  textBlock: { marginRight: 4 },
-  label: { color: COLORS.textSecondary, fontSize: 10, fontFamily: FONTS.medium },
-  count: {
-    color: COLORS.textPrimary,
-    fontSize: 18,
+  textBlock: {
+    alignItems: 'flex-start',
+  },
+  label: {
+    color: '#FFFFFF',
+    fontSize: 10,
     fontFamily: FONTS.bold,
-    lineHeight: 22,
+    lineHeight: 13,
   },
-  countLow: { color: COLORS.error },
+  count: {
+    color: 'rgba(180, 142, 111, 1)',
+    fontSize: 18,
+    fontFamily: FONTS.semiBold,
+    lineHeight: 20,
+  },
 });
