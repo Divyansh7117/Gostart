@@ -1,35 +1,66 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
-  ScrollView, Alert, StatusBar, KeyboardAvoidingView, Platform,
+  ScrollView, Alert, StatusBar, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { StackScreenProps } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, BORDER_RADIUS, SPACING, FONTS } from '../theme';
 import { useApp } from '../context/AppContext';
+import { saveProfile } from '../services/api';
 import type { ProfileStackParamList } from '../types';
 
 type Props = StackScreenProps<ProfileStackParamList, 'EditProfile'>;
 
 export default function EditProfileScreen({ navigation }: Props) {
-  const { user } = useApp();
+  const { user, setUser } = useApp();
   const insets = useSafeAreaInsets();
-  // pre-fill with whatever the user already has on their profile
+  const [saving, setSaving] = useState(false);
+
+  // pre-fill every field from the current user object
   const [name, setName] = useState(user?.name ?? '');
   const [age, setAge] = useState(user?.age ? String(user.age) : '');
-  const [city, setCity] = useState('');
-  const [profession, setProfession] = useState('');
-  const [bio, setBio] = useState('');
+  const [city, setCity] = useState(user?.city ?? '');
+  const [profession, setProfession] = useState(user?.profession ?? '');
+  const [bio, setBio] = useState(user?.about ?? '');
+  const [college, setCollege] = useState(user?.college ?? '');
+  const [height, setHeight] = useState(user?.height ?? '');
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim()) {
       Alert.alert('Name required', 'Please enter your name.');
       return;
     }
-    Alert.alert('Profile updated', 'Your changes have been saved.', [
-      { text: 'OK', onPress: () => navigation.goBack() },
-    ]);
+    if (age && (isNaN(Number(age)) || Number(age) < 18 || Number(age) > 100)) {
+      Alert.alert('Invalid age', 'Please enter a valid age between 18 and 100.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const data = await saveProfile({
+        name: name.trim(),
+        age: age ? Number(age) : undefined,
+        city: city.trim() || undefined,
+        profession: profession.trim() || undefined,
+        about: bio.trim() || undefined,
+        college: college.trim() || undefined,
+        height: height.trim() || undefined,
+      });
+
+      if (data.success) {
+        // update the context so the profile screen shows the new values immediately
+        setUser(data.user);
+        Alert.alert('Saved!', 'Your profile has been updated.', [
+          { text: 'OK', onPress: () => navigation.goBack() },
+        ]);
+      }
+    } catch (err) {
+      Alert.alert('Save failed', err instanceof Error ? err.message : 'Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -48,8 +79,12 @@ export default function EditProfileScreen({ navigation }: Props) {
             <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.title}>Edit Profile</Text>
-          <TouchableOpacity onPress={handleSave}>
-            <Text style={styles.saveLink}>Save</Text>
+          <TouchableOpacity onPress={handleSave} disabled={saving}>
+            {saving ? (
+              <ActivityIndicator size="small" color={COLORS.gold} />
+            ) : (
+              <Text style={styles.saveLink}>Save</Text>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -77,7 +112,7 @@ export default function EditProfileScreen({ navigation }: Props) {
               placeholder="Your age"
               placeholderTextColor={COLORS.textMuted}
               keyboardType="numeric"
-              maxLength={2}
+              maxLength={3}
               selectionColor={COLORS.primary}
             />
           </Field>
@@ -93,12 +128,34 @@ export default function EditProfileScreen({ navigation }: Props) {
             />
           </Field>
 
+          <Field label="Height">
+            <TextInput
+              style={styles.input}
+              value={height}
+              onChangeText={setHeight}
+              placeholder={`e.g. 5'10"`}
+              placeholderTextColor={COLORS.textMuted}
+              selectionColor={COLORS.primary}
+            />
+          </Field>
+
           <Field label="Profession">
             <TextInput
               style={styles.input}
               value={profession}
               onChangeText={setProfession}
               placeholder="What do you do?"
+              placeholderTextColor={COLORS.textMuted}
+              selectionColor={COLORS.primary}
+            />
+          </Field>
+
+          <Field label="College / University">
+            <TextInput
+              style={styles.input}
+              value={college}
+              onChangeText={setCollege}
+              placeholder="Where did you study?"
               placeholderTextColor={COLORS.textMuted}
               selectionColor={COLORS.primary}
             />
@@ -118,8 +175,12 @@ export default function EditProfileScreen({ navigation }: Props) {
             />
           </Field>
 
-          <TouchableOpacity style={styles.saveBtn} onPress={handleSave} activeOpacity={0.85}>
-            <Text style={styles.saveBtnText}>Save Changes</Text>
+          <TouchableOpacity style={[styles.saveBtn, saving && { opacity: 0.6 }]} onPress={handleSave} activeOpacity={0.85} disabled={saving}>
+            {saving ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.saveBtnText}>Save Changes</Text>
+            )}
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -127,7 +188,6 @@ export default function EditProfileScreen({ navigation }: Props) {
   );
 }
 
-// small helper to keep the label + input pattern DRY
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <View style={fieldStyles.wrap}>
@@ -153,13 +213,11 @@ const styles = StyleSheet.create({
   },
   title: { color: COLORS.textPrimary, fontSize: 24, fontFamily: FONTS.displayBold },
   saveLink: { color: COLORS.gold, fontSize: 15, fontFamily: FONTS.semiBold },
-
   form: {
     paddingHorizontal: 24,
-    paddingTop: 61,
+    paddingTop: 32,
     gap: SPACING.lg,
   },
-
   input: {
     backgroundColor: COLORS.card,
     borderRadius: BORDER_RADIUS.md,
@@ -175,7 +233,6 @@ const styles = StyleSheet.create({
     height: 110,
     paddingTop: 14,
   },
-
   saveBtn: {
     backgroundColor: COLORS.primary,
     borderRadius: BORDER_RADIUS.md,

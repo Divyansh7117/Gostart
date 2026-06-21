@@ -6,8 +6,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { StackScreenProps } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as ImagePicker from 'expo-image-picker';
 import { COLORS, BORDER_RADIUS, SPACING, FONTS, CONTENT_MAX_WIDTH } from '../theme';
 import { useApp } from '../context/AppContext';
+import { saveProfile } from '../services/api';
 import type { ProfileStackParamList } from '../types';
 import CrimsonGlow from '../components/CrimsonGlow';
 
@@ -23,14 +25,12 @@ interface MenuItem {
 }
 
 export default function ProfileScreen({ navigation }: Props) {
-  const { user, credits, logout } = useApp();
+  const { user, credits, logout, setUser } = useApp();
   const insets = useSafeAreaInsets();
-  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const handleLogout = () => {
-    // RN Web ignores Alert button callbacks so we use window.confirm there
     if (Platform.OS === 'web') {
-      // eslint-disable-next-line no-alert
       if (typeof window !== 'undefined' && window.confirm('Are you sure you want to log out?')) {
         logout();
       }
@@ -42,27 +42,59 @@ export default function ProfileScreen({ navigation }: Props) {
     ]);
   };
 
-  const handlePickPhoto = () => {
+  const handlePickPhoto = async () => {
     if (Platform.OS === 'web') {
-      // web doesn't have expo-image-picker, so we use a hidden file input instead
+      // web doesn't have expo-image-picker so use a hidden file input
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = 'image/*';
-      input.onchange = (e: any) => {
+      input.onchange = async (e: any) => {
         const file = e.target.files?.[0];
-        if (file) {
-          const reader = new FileReader();
-          reader.onload = () => setAvatarUri(reader.result as string);
-          reader.readAsDataURL(file);
-        }
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async () => {
+          const uri = reader.result as string;
+          setUploading(true);
+          try {
+            const data = await saveProfile({ photo: uri });
+            if (data.success) setUser(data.user);
+          } catch { Alert.alert('Upload failed', 'Could not save photo.'); }
+          finally { setUploading(false); }
+        };
+        reader.readAsDataURL(file);
       };
       input.click();
-    } else {
-      Alert.alert(
-        'Profile Picture',
-        'Photo picker requires expo-image-picker. Install it to enable on mobile.',
-        [{ text: 'OK' }],
-      );
+      return;
+    }
+
+    // ask for permission first on native
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission needed', 'Please allow photo access to change your profile picture.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+      base64: true,
+    });
+
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    // store as base64 so it works reliably across platforms
+    const uri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+
+    setUploading(true);
+    try {
+      const data = await saveProfile({ photo: uri });
+      if (data.success) setUser(data.user);
+    } catch {
+      Alert.alert('Upload failed', 'Could not save photo. Try again.');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -74,6 +106,8 @@ export default function ProfileScreen({ navigation }: Props) {
     { icon: 'help-circle', label: 'Help & Support', color: COLORS.textSecondary, route: 'HelpSupport' },
     { icon: 'document-text', label: 'Terms & Privacy Policy', color: COLORS.textSecondary, route: 'Terms' },
   ];
+
+  const photoUri = user?.photo ?? null;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 12 }]}>
@@ -92,16 +126,16 @@ export default function ProfileScreen({ navigation }: Props) {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 110, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' }}>
         <LinearGradient colors={['#1A0A0A', COLORS.background]} style={styles.profileHeader}>
-          <TouchableOpacity onPress={handlePickPhoto} activeOpacity={0.85} style={styles.avatarWrap}>
-            {avatarUri ? (
-              <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+          <TouchableOpacity onPress={handlePickPhoto} activeOpacity={0.85} style={styles.avatarWrap} disabled={uploading}>
+            {photoUri ? (
+              <Image source={{ uri: photoUri }} style={styles.avatarImage} />
             ) : (
               <View style={styles.avatarCircle}>
                 <Text style={styles.avatarInitial}>{user?.name?.[0]?.toUpperCase() ?? 'U'}</Text>
               </View>
             )}
             <View style={styles.cameraBadge}>
-              <Ionicons name="camera" size={14} color="#fff" />
+              <Ionicons name={uploading ? 'hourglass' : 'camera'} size={14} color="#fff" />
             </View>
           </TouchableOpacity>
 
