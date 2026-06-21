@@ -1,65 +1,37 @@
-# Gostart — Dating App
+# Gostart
 
-A full-stack React Native dating app built with Expo (iOS + Android) and a Node.js/Express backend.
+A dating app built with React Native + Expo on the frontend and Node.js/Express + MongoDB on the backend. Made this for an internship assignment.
 
----
+You can try it right now — download the APK or use the demo account on the live backend.
 
-## What's inside
-
-```
-Gostart/
-├── frontend/     ← React Native app (Expo) — runs on iOS & Android
-└── backend/      ← Node.js + Express REST API
-```
+**APK:** [Download here](https://expo.dev/artifacts/eas/W8BUVjluutLddNT_aq724sAQTBbUEZcctr0MVpjQOHc.apk)  
+**Demo login:** `demo@gostart.app` / `demo123`
 
 ---
 
-## How to run
+## Running locally
 
-### Prerequisites
-- Node.js v18+
-- Expo CLI: `npm install -g expo-cli`
-- Expo Go app on your phone (iOS App Store / Google Play)
-  OR an iOS Simulator (Mac only) / Android Emulator
+You need Node 18+ and the Expo Go app on your phone.
 
----
-
-### Step 1 — Start the backend
+**Backend**
 
 ```bash
 cd backend
 npm install
-npm run dev        # uses nodemon for auto-restart on file changes
-# OR: npm start    # plain node
 ```
 
-The backend starts at **http://localhost:3001**
-
-**Demo login credentials:**
-- Email: `demo@gostart.app`
-- Password: `demo123`
-
----
-
-### Step 2 — Update the API URL
-
-Open `frontend/src/services/api.js` and update `BASE_URL`:
-
-```js
-// For iOS Simulator:
-export const BASE_URL = "http://localhost:3001/api";
-
-// For Android Emulator:
-export const BASE_URL = "http://10.0.2.2:3001/api";
-
-// For a real phone on the same WiFi:
-export const BASE_URL = "http://YOUR_LOCAL_IP:3001/api";
-// Find your IP with: ipconfig (Windows) or ifconfig (Mac)
+Create a `.env` file:
+```
+MONGO_URI=your_mongodb_atlas_uri
+JWT_SECRET=anything_you_want
+PORT=3001
 ```
 
----
+```bash
+npm run dev
+```
 
-### Step 3 — Start the frontend
+**Frontend**
 
 ```bash
 cd frontend
@@ -67,90 +39,37 @@ npm install
 npx expo start
 ```
 
-This opens Expo DevTools in your browser. Then:
-- **iOS device**: Scan the QR code with the Camera app
-- **Android device**: Scan the QR code with the Expo Go app
-- **iOS Simulator**: Press `i` in the terminal
-- **Android Emulator**: Press `a` in the terminal
+Scan the QR code with Expo Go. Both your phone and PC need to be on the same WiFi. The frontend auto-detects the backend URL from Metro's host — no manual IP changes needed.
+
+If you just want to test without running the backend, it's already deployed at `https://gostart-9cra.onrender.com` (first request might be slow, Render free tier cold starts).
 
 ---
 
-## Features built
+## What's in the app
 
-### Frontend (React Native + Expo)
-| Screen | What it does |
-|--------|-------------|
-| Login / Register | Auth with JWT. Demo button for quick access. |
-| Find Match | Hero background, credits widget, swipe-to-search button, filters |
-| Filters Sheet | Looking for, age range, location, religion, profession |
-| Searching | Animated logo + progress bar while backend searches |
-| No Match | Friendly empty state with "Adjust Filters" CTA |
-| Match Revealed | Full profile card with confirmation modal before connecting |
-| Buy Credits | ₹2,000 for 5 credits with mock Razorpay integration |
-| Messages | List of all conversations with latest message preview |
-| Chat | Full messaging UI with optimistic sends |
-| Community | Success stories + dating tips feed |
-| Profile | User info, credit balance, logout |
-
-### Backend (Node.js + Express)
-| Endpoint | What it does |
-|----------|-------------|
-| `POST /api/auth/register` | Create account (bcrypt password hash + JWT) |
-| `POST /api/auth/login` | Login + return JWT |
-| `GET /api/auth/me` | Get current user from token |
-| `GET /api/filters` | Load saved search filters |
-| `POST /api/filters` | Save search filter preferences |
-| `POST /api/matches/search` | Start async match search, returns searchId |
-| `GET /api/matches/search/:id` | Poll search status ("searching"/"found"/"not_found") |
-| `POST /api/matches/start-conversation` | Deduct 1 credit + create conversation |
-| `GET /api/credits` | Get credit balance + available packages |
-| `POST /api/credits/initiate-payment` | Create Razorpay order (mocked) |
-| `POST /api/credits/confirm-payment` | Verify payment + top up credits |
-| `GET /api/messages` | List all conversations |
-| `GET /api/messages/:id` | Get messages in a conversation |
-| `POST /api/messages/:id/send` | Send a message |
+- **Auth** — register, login, JWT stored in AsyncStorage, remember me toggle
+- **Onboarding** — 3 steps after signup: basics, personality stuff, photo
+- **Find Match** — swipe button triggers a search, backend shuffles and returns up to 3 profiles based on your filters
+- **Filters** — gender, age range (custom dual-thumb slider), location, religion, profession — all saved to DB
+- **Chat** — real-time with WebSockets, optimistic messages, falls back to REST if disconnected
+- **Credits** — 2 free on signup, costs 1 to start a new chat, re-opening an existing one is free
+- **Profile** — edit your info, change photo, all saved to backend
 
 ---
 
-## Architecture decisions (plain English)
+## A few things worth noting
 
-**Why Expo?**
-Expo lets us run on iOS AND Android without any native build setup (no Xcode, no Android Studio needed for testing). The reviewer/interviewer just needs to install Expo Go and scan a QR code.
+**WebSocket instead of socket.io** — socket.io-client breaks in Expo Go because it tries to import Node-only modules that Metro can't bundle. Switched to the native WebSocket API (built into React Native, no install needed) + `ws` on the backend. Same functionality, no crashes.
 
-**Why JWT + AsyncStorage?**
-JSON Web Tokens are stateless — the server doesn't need to remember sessions. The token is stored on the phone (AsyncStorage) and sent with every API request. On app restart, we check the stored token to auto-login.
+**Stale closure bug in the swipe button** — PanResponder gets created once and holds a reference to the initial callback. If you change your filters and swipe, it would search with the old filters. Fixed by keeping the callback in a ref that updates every render.
 
-**Why Context API instead of Redux?**
-The app is small enough that React's built-in Context API handles state perfectly. Redux adds boilerplate that isn't needed at this scale.
+**Bidirectional gender matching** — wasn't enough to just check what the searcher wants, also had to check what the candidate wants. Seeded demo profiles don't have a saved preference so they match with everyone.
 
-**Why polling instead of WebSockets for match search?**
-For simplicity. In production, you'd use Socket.IO or Firebase Realtime Database to push the match result to the client instead of the client repeatedly asking "are we done yet?".
-
-**Why in-memory data instead of a real database?**
-No setup friction. The reviewer can clone and run immediately. The data structure is identical to what a real MongoDB/PostgreSQL schema would look like — just swap the in-memory arrays for DB queries.
-
-**Credits system:**
-- New users get 2 free credits
-- Each "Start Conversation" costs 1 credit  
-- Buy 5 credits for ₹2,000 (via Razorpay, mocked here)
-- Credits never expire
+**Dual-thumb slider** — React Native's default Slider only has one thumb so I built a custom one with PanResponder. Web version uses two overlapping HTML range inputs.
 
 ---
 
-## Tech Stack
+## Stack
 
-**Frontend:**
-- React Native + Expo ~50
-- React Navigation (Stack + Bottom Tabs)
-- React Native Reanimated + Gesture Handler (swipe button)
-- Expo Blur (modal overlay)
-- Expo Linear Gradient (background gradients)
-- AsyncStorage (JWT storage)
-- @expo/vector-icons (Ionicons)
-
-**Backend:**
-- Node.js + Express
-- bcryptjs (password hashing)
-- jsonwebtoken (JWT auth)
-- cors (cross-origin requests from the phone)
-- uuid (unique IDs for conversations/searches)
+Frontend: React Native, Expo SDK 54, TypeScript, React Navigation, React Context  
+Backend: Node.js, Express, TypeScript, MongoDB Atlas, Mongoose, JWT, ws
