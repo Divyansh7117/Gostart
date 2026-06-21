@@ -76,7 +76,7 @@ export default function ProfileScreen({ navigation }: Props) {
   ];
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + 32 }]}>
+    <View style={[styles.container, { paddingTop: insets.top + 12 }]}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <CrimsonGlow />
       <View style={styles.titleRow}>
@@ -90,7 +90,7 @@ export default function ProfileScreen({ navigation }: Props) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 220, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' }}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 110, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' }}>
         <LinearGradient colors={['#1A0A0A', COLORS.background]} style={styles.profileHeader}>
           <TouchableOpacity onPress={handlePickPhoto} activeOpacity={0.85} style={styles.avatarWrap}>
             {avatarUri ? (
@@ -145,17 +145,15 @@ export default function ProfileScreen({ navigation }: Props) {
           ))}
         </View>
 
-        <View style={styles.footerNoteWrap}>
-          <Text style={styles.version}>Gostart v1.0.0</Text>
-        </View>
-      </ScrollView>
-
-      <View style={[styles.logoutDock, { bottom: insets.bottom + 158 }]}>
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.85}>
           <Ionicons name="log-out-outline" size={18} color={COLORS.error} />
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
-      </View>
+
+        <View style={styles.footerNoteWrap}>
+          <Text style={styles.version}>Gostart v1.0.0</Text>
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -188,8 +186,7 @@ const styles = StyleSheet.create({
   menuLabel: { color: COLORS.textPrimary, fontSize: 15, flex: 1 },
   menuRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   menuValue: { fontSize: 13, fontWeight: '500' },
-  logoutDock: { position: 'absolute', left: 0, right: 0, paddingHorizontal: SPACING.lg, alignItems: 'center' },
-  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 10, marginBottom: 6, paddingVertical: 12, borderRadius: BORDER_RADIUS.md, backgroundColor: 'rgba(231, 76, 60, 0.08)', borderWidth: 1, borderColor: 'rgba(231, 76, 60, 0.2)', maxWidth: CONTENT_MAX_WIDTH, width: '100%' },
+  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginHorizontal: SPACING.lg, marginTop: 10, marginBottom: 6, paddingVertical: 12, borderRadius: BORDER_RADIUS.md, backgroundColor: 'rgba(231, 76, 60, 0.08)', borderWidth: 1, borderColor: 'rgba(231, 76, 60, 0.2)' },
   logoutText: { color: COLORS.error, fontSize: 15, fontWeight: '600' },
   footerNoteWrap: { alignItems: 'center', paddingTop: 6 },
   version: { color: COLORS.textMuted, fontSize: 12, textAlign: 'center' },

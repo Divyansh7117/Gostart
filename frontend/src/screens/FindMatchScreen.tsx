@@ -37,7 +37,7 @@ function useBgImageLayout() {
       width: 400 * scale,
       height: 400 * scale * IMG_NATURAL_RATIO,
       top: -30 * scale,
-      left: 20 * scale,
+      left: 5 * scale,
     },
   };
 }

@@ -2,15 +2,44 @@
 // TypeScript interfaces give us compile-time safety on what the API returns.
 // Screens never call fetch() directly — they import functions from here.
 //
-// For physical device testing, change BASE_URL:
-//   iOS Simulator:    http://localhost:3001/api
-//   Android Emulator: http://10.0.2.2:3001/api
-//   Real device:      http://<your-local-IP>:3001/api
+// BASE_URL auto-detects so it "just works" everywhere:
+//   • Web:            http://localhost:3001/api
+//   • Expo Go / device: http://<your-PC's-LAN-IP>:3001/api  (derived from the
+//                       Metro/Expo host the app was loaded from)
+//   • Android emulator: http://10.0.2.2:3001/api  (host loopback alias)
+// Override anytime by setting EXPO_PUBLIC_API_URL in your environment.
 
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Filters, User, Profile, Message, Conversation, FullConversation, CreditPackage, MatchSummary, MatchCandidate } from '../types';
 
-export const BASE_URL = 'http://localhost:3001/api';
+const API_PORT = 3001;
+
+function resolveBaseUrl(): string {
+  // 1) Explicit override always wins
+  const override = process.env.EXPO_PUBLIC_API_URL;
+  if (override) return override.replace(/\/$/, '');
+
+  // 2) Web runs in the browser — same host as the page
+  if (Platform.OS === 'web') return `http://localhost:${API_PORT}/api`;
+
+  // 3) Native (Expo Go / dev build): reuse the host Metro served the bundle from,
+  //    which is your computer's LAN IP — so the phone hits the right machine.
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    (Constants.expoGoConfig as { debuggerHost?: string } | undefined)?.debuggerHost ||
+    (Constants.manifest2 as { extra?: { expoGo?: { debuggerHost?: string } } } | undefined)?.extra?.expoGo?.debuggerHost;
+
+  const host = hostUri?.split(':')[0];
+  if (host) return `http://${host}:${API_PORT}/api`;
+
+  // 4) Last-resort fallbacks
+  if (Platform.OS === 'android') return `http://10.0.2.2:${API_PORT}/api`;
+  return `http://localhost:${API_PORT}/api`;
+}
+
+export const BASE_URL = resolveBaseUrl();
 
 // ── Response shapes ────────────────────────────────────────────────────────────
 
@@ -117,10 +146,29 @@ const authHeaders = async (): Promise<HeadersInit_> => {
   };
 };
 
-// Generic fetch wrapper — throws with the server's message on non-OK status
+const REQUEST_TIMEOUT_MS = 12000;
+
+// Generic fetch wrapper — throws with the server's message on non-OK status.
+// Includes a timeout so a request to an unreachable backend fails fast with a
+// clear message instead of leaving the UI spinning forever.
 async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${BASE_URL}${endpoint}`;
-  const response = await fetch(url, options);
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(url, { ...options, signal: controller.signal });
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error(`Can't reach the server at ${BASE_URL}. Make sure the backend is running and reachable from this device.`);
+    }
+    throw new Error(`Network error reaching ${BASE_URL}. Check your connection and that the backend is running.`);
+  } finally {
+    clearTimeout(timer);
+  }
+
   const data = await response.json() as T & { message?: string };
 
   if (!response.ok) {

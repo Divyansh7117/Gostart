@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
   },
 
   packageCard: {
-    backgroundColor: 'rgba(180, 142, 111, 0.04)',
+    backgroundColor: 'rgba(180, 142, 111, 0.07)',
     borderRadius: 18,
     paddingHorizontal: 16,
     paddingTop: 24,
@@ -151,13 +151,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     overflow: 'hidden',
     position: 'relative',
-    borderWidth: 1,
-    borderColor: 'rgba(180, 142, 111, 0.22)',
-    shadowColor: '#B48E6F',
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 24,
-    shadowOpacity: 0.18,
-    elevation: 6,
+    borderWidth: 0,
   },
 
 

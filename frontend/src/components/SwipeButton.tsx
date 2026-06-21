@@ -39,10 +39,17 @@ export default function SwipeButton({
   const barWidth = Math.min(width - 48, MAX_BAR_WIDTH);
   const maxSwipe = barWidth - THUMB_SIZE - 8;
 
+  // Keep a ref to the latest onSwipe/disabled so the PanResponder (created once)
+  // always calls the current callback and sees the current disabled state.
+  const onSwipeRef = useRef(onSwipe);
+  const disabledRef = useRef(disabled);
+  onSwipeRef.current = onSwipe;
+  disabledRef.current = disabled;
+
   const panResponder = useRef<PanResponderInstance>(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => !disabled && !isSwiped,
-      onMoveShouldSetPanResponder: () => !disabled && !isSwiped,
+      onStartShouldSetPanResponder: () => !disabledRef.current,
+      onMoveShouldSetPanResponder: () => !disabledRef.current,
 
       onPanResponderMove: (_, g) => {
         translateX.setValue(Math.max(0, Math.min(g.dx, maxSwipe)));
@@ -56,7 +63,7 @@ export default function SwipeButton({
             useNativeDriver: true,
           }).start(() => {
             setIsSwiped(true);
-            onSwipe?.();
+            onSwipeRef.current?.();
           });
         } else {
           // Not far enough → spring back

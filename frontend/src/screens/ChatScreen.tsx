@@ -8,6 +8,7 @@ import type { StackScreenProps } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, BORDER_RADIUS, SPACING } from '../theme';
 import { getConversation, sendMessage } from '../services/api';
+import { connectSocket, addHandler, joinChat, sendChatMessage, isConnected } from '../services/socket';
 import { useApp } from '../context/AppContext';
 import type { Message, MessagesStackParamList } from '../types';
 import CrimsonGlow from '../components/CrimsonGlow';
@@ -21,56 +22,86 @@ export default function ChatScreen({ navigation, route }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
+  const [connected, setConnected] = useState(false);
   const flatListRef = useRef<FlatList<Message>>(null);
 
-  useEffect(() => {
-    loadMessages();
-    const interval = setInterval(loadMessages, 3000);
-    return () => clearInterval(interval);
-  }, []);
+  const chatId = [user?.id, match.id].sort().join('_');
 
-  const loadMessages = async () => {
-    try {
-      const data = await getConversation(conversationId);
-      if (data.success) setMessages(data.conversation.messages);
-    } catch {
-      /* silent fail */
-    }
-  };
+  useEffect(() => {
+    let removeHandler: (() => void) | null = null;
+
+    const init = async () => {
+      // Load history from REST
+      try {
+        const data = await getConversation(conversationId);
+        if (data.success) setMessages(data.conversation.messages);
+      } catch { /* silent */ }
+
+      // Connect WebSocket and join chat room
+      await connectSocket();
+      joinChat(chatId);
+      setConnected(isConnected());
+
+      removeHandler = addHandler((msg) => {
+        if (msg.type === 'auth_ok') {
+          // Auth confirmed — join the room
+          joinChat(chatId);
+          setConnected(true);
+        }
+        if (msg.type === 'new_message') {
+          setMessages((prev) => {
+            // Replace matching optimistic placeholder
+            const without = prev.filter(
+              (m) => !(m.id.startsWith('local_') && m.text === msg.text && m.senderId === msg.senderId),
+            );
+            if (without.some((m) => m.id === msg.id)) return without;
+            return [...without, { id: msg.id, senderId: msg.senderId, text: msg.text, timestamp: msg.timestamp }];
+          });
+          setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 80);
+        }
+      });
+    };
+
+    init();
+
+    return () => {
+      removeHandler?.();
+    };
+  }, [conversationId, chatId]);
 
   const handleSend = async () => {
     const text = inputText.trim();
     if (!text) return;
     setInputText('');
 
+    // Optimistic bubble
     const optimistic: Message = {
       id: `local_${Date.now()}`,
-      senderId: user?.id ?? 'user_demo',
+      senderId: user?.id ?? '',
       text,
       timestamp: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, optimistic]);
-    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 80);
 
-    setSending(true);
-    try {
-      await sendMessage(conversationId, text);
-    } catch {
-      /* optimistic message stays */
-    } finally {
-      setSending(false);
+    if (isConnected()) {
+      sendChatMessage(chatId, conversationId, text);
+    } else {
+      // Fallback to REST if socket is offline
+      setSending(true);
+      try { await sendMessage(conversationId, text); } catch { /* optimistic stays */ } finally { setSending(false); }
     }
   };
 
-  const isMyMessage = (msg: Message) => msg.senderId === (user?.id ?? 'user_demo');
+  const isMyMessage = (msg: Message) => msg.senderId === (user?.id ?? '');
 
   const renderMessage: ListRenderItem<Message> = ({ item }) => {
     const mine = isMyMessage(item);
     return (
       <View style={[styles.messageRow, mine ? styles.rowRight : styles.rowLeft]}>
-        <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs]}>
+        <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs, item.id.startsWith('local_') && styles.bubbleOptimistic]}>
           <Text style={[styles.bubbleText, mine ? styles.textMine : styles.textTheirs]}>{item.text}</Text>
-          <Text style={styles.timeText}>
+          <Text style={[styles.timeText, !mine && styles.timeTextTheirs]}>
             {new Date(item.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
           </Text>
         </View>
@@ -86,8 +117,13 @@ export default function ChatScreen({ navigation, route }: Props) {
     >
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <CrimsonGlow />
+
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.reset({ index: 0, routes: [{ name: 'MessagesList' }] })} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <TouchableOpacity
+          onPress={() => navigation.reset({ index: 0, routes: [{ name: 'MessagesList' }] })}
+          style={styles.backBtn}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
           <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
         </TouchableOpacity>
         <TouchableOpacity
@@ -95,10 +131,13 @@ export default function ChatScreen({ navigation, route }: Props) {
           onPress={() => navigation.navigate('MatchProfile', { profile: match })}
           activeOpacity={0.8}
         >
-          <Image source={{ uri: match.photo }} style={styles.headerAvatar} />
+          <View style={styles.avatarWrap}>
+            <Image source={{ uri: match.photo }} style={styles.headerAvatar} />
+            <View style={[styles.onlineDot, connected ? styles.dotOnline : styles.dotOffline]} />
+          </View>
           <View style={styles.headerInfo}>
             <Text style={styles.headerName}>{match.name}, {match.age}</Text>
-            <Text style={styles.headerSub}>{match.city} · {match.distance}</Text>
+            <Text style={styles.headerSub}>{connected ? 'Active now' : `${match.city} · ${match.distance}`}</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
         </TouchableOpacity>
@@ -123,6 +162,8 @@ export default function ChatScreen({ navigation, route }: Props) {
           onChangeText={setInputText}
           multiline
           maxLength={500}
+          onSubmitEditing={Platform.OS === 'web' ? handleSend : undefined}
+          blurOnSubmit={false}
         />
         <TouchableOpacity
           style={[styles.sendBtn, !inputText.trim() && styles.sendBtnDisabled]}
@@ -141,7 +182,11 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderBottomWidth: 1, borderBottomColor: COLORS.cardBorder },
   backBtn: { padding: 4 },
   profileTrigger: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  avatarWrap: { position: 'relative' },
   headerAvatar: { width: 44, height: 44, borderRadius: 22 },
+  onlineDot: { position: 'absolute', bottom: 1, right: 1, width: 11, height: 11, borderRadius: 6, borderWidth: 2, borderColor: COLORS.background },
+  dotOnline: { backgroundColor: COLORS.success },
+  dotOffline: { backgroundColor: COLORS.textMuted },
   headerInfo: { flex: 1 },
   headerName: { color: COLORS.textPrimary, fontSize: 16, fontWeight: '700' },
   headerSub: { color: COLORS.textSecondary, fontSize: 12 },
@@ -152,10 +197,12 @@ const styles = StyleSheet.create({
   bubble: { maxWidth: '78%', borderRadius: BORDER_RADIUS.lg, paddingHorizontal: 14, paddingVertical: 10 },
   bubbleMine: { backgroundColor: COLORS.primary, borderBottomRightRadius: 4 },
   bubbleTheirs: { backgroundColor: COLORS.card, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: COLORS.cardBorder },
+  bubbleOptimistic: { opacity: 0.75 },
   bubbleText: { fontSize: 15, lineHeight: 21 },
   textMine: { color: '#fff' },
   textTheirs: { color: COLORS.textPrimary },
-  timeText: { fontSize: 10, color: 'rgba(255,255,255,0.6)', marginTop: 3, textAlign: 'right' },
+  timeText: { fontSize: 10, color: 'rgba(255,255,255,0.55)', marginTop: 3, textAlign: 'right' },
+  timeTextTheirs: { color: COLORS.textMuted },
   inputBar: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: SPACING.md, paddingTop: SPACING.sm, gap: 10, borderTopWidth: 1, borderTopColor: COLORS.cardBorder },
   input: { flex: 1, backgroundColor: COLORS.card, borderRadius: BORDER_RADIUS.lg, paddingHorizontal: 14, paddingVertical: 10, color: COLORS.textPrimary, fontSize: 15, maxHeight: 120, borderWidth: 1, borderColor: COLORS.cardBorder },
   sendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center' },

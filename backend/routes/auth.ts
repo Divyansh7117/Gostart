@@ -80,6 +80,18 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+    if (!emailOk) {
+      res.status(400).json({ success: false, message: 'Please enter a valid email address.' });
+      return;
+    }
+
+    if (password.length < 8) {
+      res.status(400).json({ success: false, message: 'Password must be at least 8 characters.' });
+      return;
+    }
+
+    // Email must be unique (also enforced by a unique index on the schema)
     const existing = await User.findOne({ email: email.toLowerCase().trim() });
     if (existing) {
       res.status(409).json({ success: false, message: 'An account with this email already exists.' });

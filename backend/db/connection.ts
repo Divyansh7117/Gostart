@@ -35,7 +35,38 @@ async function seedInitialData(): Promise<void> {
   await migrateConversations();
   await migrateOnboardingFlag();
   await seedProfiles();
+  await ensureMaleProfiles();
   await seedDemoUser();
+  await ensureDemoProfile();
+}
+
+// Give the demo account a matchable dating profile (same _id as the demo user)
+// so a real account can match with it and test two-way chat. Demo is "male" so
+// it shows up under "Looking for: Men".
+async function ensureDemoProfile(): Promise<void> {
+  const exists = await Profile.findById('user_demo');
+  if (exists) return;
+
+  await Profile.create({
+    _id: 'user_demo',
+    name: 'Demo User',
+    age: 28,
+    gender: 'male',
+    city: 'Gurgaon',
+    height: "5'10\"",
+    religion: 'Hindu',
+    profession: 'Working Professional',
+    college: 'Demo University',
+    distance: '2 km away',
+    about: "Hi, I'm the demo account — match with me to test chatting end to end. I reply when you log in as demo@gostart.app.",
+    tags: ['Demo', 'Friendly', 'Tester'],
+    weekendVibe: 'Trying new cafes',
+    firstDateIdea: 'Coffee and a long walk',
+    loveLanguage: 'Quality Time',
+    verified: true,
+    photo: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&q=80',
+  });
+  console.log('[MongoDB] Created matchable profile for the demo account.');
 }
 
 // Users created before the onboarding flow existed have no onboardingComplete
@@ -170,10 +201,134 @@ async function seedProfiles(): Promise<void> {
       verified: true,
       photo: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400&q=80',
     },
+    {
+      _id: 'profile_006',
+      name: 'Arjun Malhotra',
+      age: 27,
+      gender: 'male',
+      city: 'Gurgaon',
+      height: "6'1\"",
+      religion: 'Hindu',
+      profession: 'Software Engineer',
+      college: 'IIT Delhi',
+      distance: '4 km away',
+      about: "Backend engineer at a Series B startup. Avid cyclist, amateur chef, and someone who actually reads the books on his shelf. Looking for a genuine connection over good food and better conversations.",
+      tags: ['Cyclist', 'Foodie', 'Tech', 'Reader', 'Dog lover'],
+      weekendVibe: 'Long bike rides then cooking something elaborate',
+      firstDateIdea: 'Farmer\'s market brunch then a walk in Lodhi Garden',
+      loveLanguage: 'Quality Time',
+      verified: true,
+      photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80',
+    },
+    {
+      _id: 'profile_007',
+      name: 'Kabir Singhania',
+      age: 30,
+      gender: 'male',
+      city: 'Mumbai',
+      height: "5'11\"",
+      religion: 'Sikh',
+      profession: 'Working Professional',
+      college: 'SP Jain',
+      distance: '9 km away',
+      about: "Strategy consultant by week, jazz pianist by weekend. I've lived in three countries and make the best dal makhani you'll ever have. Serious about the right things, funny about the rest.",
+      tags: ['Music', 'Travel', 'Foodie', 'Fitness', 'Jazz'],
+      weekendVibe: 'Live music gig or cooking for friends',
+      firstDateIdea: 'Jazz bar with good cocktails and better conversation',
+      loveLanguage: 'Acts of Service',
+      verified: true,
+      photo: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&q=80',
+    },
+    {
+      _id: 'profile_008',
+      name: 'Rohan Verma',
+      age: 25,
+      gender: 'male',
+      city: 'Bangalore',
+      height: "5'10\"",
+      religion: 'Hindu',
+      profession: 'Founder / Entrepreneur',
+      college: 'NIT Trichy',
+      distance: '6 km away',
+      about: "Building a climate-tech startup. Trail runner, weekend photographer, and permanently planning a Spiti Valley trip. Looking for someone curious about the world and their place in it.",
+      tags: ['Entrepreneur', 'Running', 'Photography', 'Sustainability', 'Mountains'],
+      weekendVibe: 'Trail run at dawn → rooftop photography at dusk',
+      firstDateIdea: 'Botanical garden walk then filter coffee at a tiny café',
+      loveLanguage: 'Words of Affirmation',
+      verified: true,
+      photo: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&q=80',
+    },
   ];
 
   await Profile.insertMany(profiles);
   console.log(`[MongoDB] Seeded ${profiles.length} profiles.`);
+}
+
+// Upsert the 3 male profiles — runs on every start so existing DBs get them too.
+async function ensureMaleProfiles(): Promise<void> {
+  const maleProfiles = [
+    {
+      _id: 'profile_006',
+      name: 'Arjun Malhotra',
+      age: 27,
+      gender: 'male',
+      city: 'Gurgaon',
+      height: "6'1\"",
+      religion: 'Hindu',
+      profession: 'Software Engineer',
+      college: 'IIT Delhi',
+      distance: '4 km away',
+      about: "Backend engineer at a Series B startup. Avid cyclist, amateur chef, and someone who actually reads the books on his shelf. Looking for a genuine connection over good food and better conversations.",
+      tags: ['Cyclist', 'Foodie', 'Tech', 'Reader', 'Dog lover'],
+      weekendVibe: 'Long bike rides then cooking something elaborate',
+      firstDateIdea: "Farmer's market brunch then a walk in Lodhi Garden",
+      loveLanguage: 'Quality Time',
+      verified: true,
+      photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80',
+    },
+    {
+      _id: 'profile_007',
+      name: 'Kabir Singhania',
+      age: 30,
+      gender: 'male',
+      city: 'Mumbai',
+      height: "5'11\"",
+      religion: 'Sikh',
+      profession: 'Working Professional',
+      college: 'SP Jain',
+      distance: '9 km away',
+      about: "Strategy consultant by week, jazz pianist by weekend. I've lived in three countries and make the best dal makhani you'll ever have. Serious about the right things, funny about the rest.",
+      tags: ['Music', 'Travel', 'Foodie', 'Fitness', 'Jazz'],
+      weekendVibe: 'Live music gig or cooking for friends',
+      firstDateIdea: 'Jazz bar with good cocktails and better conversation',
+      loveLanguage: 'Acts of Service',
+      verified: true,
+      photo: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&q=80',
+    },
+    {
+      _id: 'profile_008',
+      name: 'Rohan Verma',
+      age: 25,
+      gender: 'male',
+      city: 'Bangalore',
+      height: "5'10\"",
+      religion: 'Hindu',
+      profession: 'Founder / Entrepreneur',
+      college: 'NIT Trichy',
+      distance: '6 km away',
+      about: "Building a climate-tech startup. Trail runner, weekend photographer, and permanently planning a Spiti Valley trip. Looking for someone curious about the world and their place in it.",
+      tags: ['Entrepreneur', 'Running', 'Photography', 'Sustainability', 'Mountains'],
+      weekendVibe: 'Trail run at dawn → rooftop photography at dusk',
+      firstDateIdea: 'Botanical garden walk then filter coffee at a tiny café',
+      loveLanguage: 'Words of Affirmation',
+      verified: true,
+      photo: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&q=80',
+    },
+  ];
+
+  for (const p of maleProfiles) {
+    await Profile.findOneAndUpdate({ _id: p._id }, { $setOnInsert: p }, { upsert: true, new: true });
+  }
 }
 
 // ── Seed: Demo User ──────────────────────────────────────────────────────────

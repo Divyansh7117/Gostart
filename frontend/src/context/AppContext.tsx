@@ -21,7 +21,7 @@ interface AppContextValue {
   isLoggedIn: boolean;
   isLoading: boolean;
   needsOnboarding: boolean;
-  login: (user: User, token: string) => Promise<void>;
+  login: (user: User, token: string, remember?: boolean) => Promise<void>;
   logout: () => Promise<void>;
   setUser: (user: User) => void;
   deductCredit: () => void;
@@ -56,6 +56,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const checkAuthState = async (): Promise<void> => {
     try {
       const token = await AsyncStorage.getItem('@gostart_token');
+      const remember = await AsyncStorage.getItem('@gostart_remember');
+
+      // "Remember me" off → don't auto-login on next launch; clear the stored token.
+      if (token && remember === '0') {
+        await AsyncStorage.removeItem('@gostart_token');
+        await AsyncStorage.removeItem('@gostart_remember');
+        return;
+      }
 
       if (token) {
         const data = await getMe();
@@ -81,8 +89,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const login = async (userData: User, token: string): Promise<void> => {
+  const login = async (userData: User, token: string, remember = true): Promise<void> => {
+    // Token is always stored so this session's API calls are authenticated.
+    // The remember flag controls whether we auto-login on the NEXT app launch.
     await AsyncStorage.setItem('@gostart_token', token);
+    await AsyncStorage.setItem('@gostart_remember', remember ? '1' : '0');
     setUser(userData);
     setCredits(userData.credits);
     setIsLoggedIn(true);
@@ -90,6 +101,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = async (): Promise<void> => {
     await AsyncStorage.removeItem('@gostart_token');
+    await AsyncStorage.removeItem('@gostart_remember');
     setUser(null);
     setCredits(0);
     setIsLoggedIn(false);

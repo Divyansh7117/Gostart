@@ -17,6 +17,7 @@ import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { Profile, IProfile } from '../models/Profile';
 import { User } from '../models/User';
+import { UserFilter } from '../models/UserFilter';
 import { Conversation } from '../models/Conversation';
 import { authMiddleware, AuthenticatedRequest } from '../middleware/auth';
 import { ActiveSearch, SearchFilters, ProfileResponse } from '../types';
@@ -55,33 +56,57 @@ function toProfileResponse(p: IProfile): ProfileResponse {
 
 const MAX_MATCHES = 3;
 
+// Map a lookingFor string to the set of genders it targets
+function lookingForGenders(lookingFor: string): string[] {
+  if (lookingFor === 'Women') return ['female'];
+  if (lookingFor === 'Men')   return ['male'];
+  if (lookingFor === 'LGBTQ+') return ['male', 'female', 'non-binary'];
+  return ['female'];
+}
+
+// Default lookingFor for seeded profiles that have no UserFilter record
+function defaultLookingFor(gender: string): string {
+  if (gender === 'male')   return 'Women';
+  if (gender === 'female') return 'Men';
+  return 'LGBTQ+';
+}
+
 async function findMatchingProfiles(
   filters: Partial<SearchFilters>,
   selfId: string,
+  selfGender: string,       // the searcher's own gender
   limit = MAX_MATCHES,
 ): Promise<ProfileResponse[]> {
   const { lookingFor, minAge, maxAge, location, religion, profession } = filters;
 
-  // Map "Looking for" to gender values stored in the DB
-  let targetGenders: string[] = [];
-  if (lookingFor === 'Women') targetGenders = ['female'];
-  else if (lookingFor === 'Men') targetGenders = ['male'];
-  else if (lookingFor === 'LGBTQ+') targetGenders = ['male', 'female', 'non-binary'];
-  else targetGenders = ['female'];
+  // Step 1 — filter by what the searcher wants
+  const targetGenders = lookingForGenders(lookingFor ?? 'Women');
 
-  // Build the MongoDB query object dynamically
   const query: Record<string, unknown> = {
-    _id: { $ne: selfId }, // never match yourself
+    _id: { $ne: selfId },
     gender: { $in: targetGenders },
     age: { $gte: minAge ?? 18, $lte: maxAge ?? 99 },
   };
-
   if (religion && religion !== 'Any') query.religion = religion;
   if (profession && profession !== 'Any') query.profession = profession;
 
   let candidates = await Profile.find(query);
 
-  // Prefer nearby profiles when location filter is set
+  // Step 2 — bidirectional check: keep only candidates who are also
+  // interested in the searcher's gender.
+  const candidateIds = candidates.map((c) => String(c._id));
+  const savedFilters = await UserFilter.find({ userId: { $in: candidateIds } });
+  const filterMap = new Map(savedFilters.map((f) => [f.userId, f.lookingFor]));
+
+  candidates = candidates.filter((c) => {
+    const theirLookingFor = filterMap.get(String(c._id));
+    // Seeded/unregistered profiles have no saved filter — treat as open to anyone.
+    if (!theirLookingFor) return true;
+    const theyWant = lookingForGenders(theirLookingFor);
+    return theyWant.includes(selfGender);
+  });
+
+  // Location preference
   if (location === 'Nearby') {
     const nearby = candidates.filter((p) => parseInt(p.distance) <= 20);
     if (nearby.length > 0) candidates = nearby;
@@ -90,7 +115,7 @@ async function findMatchingProfiles(
     if (sameCity.length > 0) candidates = sameCity;
   }
 
-  // Shuffle (Fisher–Yates) so each search surfaces a fresh set, then take `limit`
+  // Shuffle (Fisher–Yates) then take `limit`
   for (let i = candidates.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
@@ -100,9 +125,14 @@ async function findMatchingProfiles(
 }
 
 // POST /api/matches/search — kick off an async search
-router.post('/search', authMiddleware, (req: Request, res: Response): void => {
+router.post('/search', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   const { filters } = req.body as { filters: Partial<SearchFilters> };
   const { userId } = (req as AuthenticatedRequest).user;
+
+  // Fetch the searcher's gender for the bidirectional filter
+  const searcher = await User.findById(userId).select('gender');
+  const selfGender = searcher?.gender ?? 'male';
+
   const searchId = uuidv4();
 
   activeSearches[searchId] = {
@@ -115,7 +145,7 @@ router.post('/search', authMiddleware, (req: Request, res: Response): void => {
 
   // Simulate realistic matching latency, then query MongoDB
   setTimeout(() => {
-    findMatchingProfiles(filters ?? {}, userId)
+    findMatchingProfiles(filters ?? {}, userId, selfGender)
       .then((matches) => {
         activeSearches[searchId] = {
           ...activeSearches[searchId],

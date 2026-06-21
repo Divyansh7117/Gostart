@@ -21,6 +21,7 @@ export default function LoginScreen() {
   const [age, setAge] = useState('');
   const [gender, setGender] = useState<'male' | 'female'>('male');
   const [showPassword, setShowPassword] = useState(false);
+  const [remember, setRemember] = useState(true);
 
   const handleSubmit = async () => {
     if (!email || !password) {
@@ -33,6 +34,11 @@ export default function LoginScreen() {
       return;
     }
 
+    if (isSignUp && password.length < 8) {
+      Alert.alert('Weak password', 'Password must be at least 8 characters.');
+      return;
+    }
+
     setLoading(true);
     try {
       const data = isSignUp
@@ -40,7 +46,7 @@ export default function LoginScreen() {
         : await loginUser(email, password);
 
       // New users land on the onboarding flow automatically (onboardingComplete=false)
-      if (data.success) await login(data.user, data.token);
+      if (data.success) await login(data.user, data.token, remember);
     } catch (err) {
       Alert.alert('Error', err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
@@ -52,7 +58,7 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const data = await loginUser('demo@gostart.app', 'demo123');
-      if (data.success) await login(data.user, data.token);
+      if (data.success) await login(data.user, data.token, remember);
     } catch (err) {
       Alert.alert('Demo login failed', err instanceof Error ? err.message : 'Try again.');
     } finally {
@@ -171,6 +177,21 @@ export default function LoginScreen() {
                 )}
             </>
 
+            {isSignUp && (
+              <Text style={styles.passwordHint}>Use at least 8 characters.</Text>
+            )}
+
+            <TouchableOpacity
+              style={styles.rememberRow}
+              onPress={() => setRemember((v) => !v)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.checkbox, remember && styles.checkboxOn]}>
+                {remember && <Ionicons name="checkmark" size={14} color="#fff" />}
+              </View>
+              <Text style={styles.rememberText}>Remember me</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.primaryBtn} onPress={handleSubmit} disabled={loading} activeOpacity={0.85}>
               {loading
                 ? <ActivityIndicator color="#fff" />
@@ -228,6 +249,11 @@ const styles = StyleSheet.create({
   genderChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   genderText: { color: COLORS.textSecondary, fontWeight: '600', fontSize: 14 },
   genderTextActive: { color: '#fff' },
+  passwordHint: { color: COLORS.textMuted, fontSize: 12, marginTop: -4, marginBottom: 4 },
+  rememberRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6, marginBottom: 10 },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: COLORS.cardBorder, justifyContent: 'center', alignItems: 'center', backgroundColor: '#111' },
+  checkboxOn: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  rememberText: { color: COLORS.textSecondary, fontSize: 14, fontFamily: FONTS.medium },
   primaryBtn: { backgroundColor: COLORS.primary, borderRadius: BORDER_RADIUS.md, paddingVertical: 16, alignItems: 'center', marginTop: 4 },
   primaryBtnText: { color: '#fff', fontSize: 16, fontFamily: FONTS.semiBold, letterSpacing: 0.2 },
   toggleRow: { alignItems: 'center', marginTop: SPACING.md, paddingVertical: 4 },

@@ -9,6 +9,7 @@ import {
   ScrollView,
   Dimensions,
   Platform,
+  PanResponder,
   Image,
 } from 'react-native';
 import { COLORS, BORDER_RADIUS, SPACING, FONTS } from '../theme';
@@ -16,19 +17,23 @@ import { saveFilters } from '../services/api';
 import { useApp } from '../context/AppContext';
 import type { Filters } from '../types';
 
-let NativeSlider: React.ComponentType<any> | null = null;
-if (Platform.OS !== 'web') {
-  NativeSlider = require('@react-native-community/slider').default;
-}
+// ── Dual-thumb range slider ───────────────────────────────────────────────────
+// Web  → two overlapping <input type="range"> on a shared track (CSS trick).
+// Native → custom PanResponder thumbs drawn over a manually painted track.
 
+const THUMB = 24;
+const TRACK_H = 4;
 const RANGE_STYLE_ID = 'gostart-range-slider';
 
 function RangeSlider({
   minValue, maxValue, min, max, onMinChange, onMaxChange,
 }: {
-  minValue: number; maxValue: number; min: number; max: number;
-  onMinChange: (v: number) => void; onMaxChange: (v: number) => void;
+  minValue: number; maxValue: number;
+  min: number; max: number;
+  onMinChange: (v: number) => void;
+  onMaxChange: (v: number) => void;
 }) {
+  // ── Web ──────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (Platform.OS !== 'web') return;
     if ((document as any).getElementById(RANGE_STYLE_ID)) return;
@@ -40,24 +45,20 @@ function RangeSlider({
         position: absolute; top: 0; left: 0;
         width: 100%; height: 100%;
         background: transparent; outline: none; border: none;
-        margin: 0; padding: 0;
-        pointer-events: none;
+        margin: 0; padding: 0; pointer-events: none;
       }
       .gs-range::-webkit-slider-thumb {
         -webkit-appearance: none; appearance: none;
-        width: 20px; height: 20px; border-radius: 50%;
-        background: ${COLORS.primary};
-        border: 2px solid #fff;
+        width: 22px; height: 22px; border-radius: 50%;
+        background: ${COLORS.primary}; border: 2px solid #fff;
         box-shadow: 0 1px 5px rgba(0,0,0,0.45);
         cursor: pointer; pointer-events: all;
       }
       .gs-range::-moz-range-thumb {
-        width: 20px; height: 20px; border-radius: 50%;
-        background: ${COLORS.primary};
-        border: 2px solid #fff;
+        width: 22px; height: 22px; border-radius: 50%;
+        background: ${COLORS.primary}; border: 2px solid #fff;
         box-shadow: 0 1px 5px rgba(0,0,0,0.45);
         cursor: pointer; pointer-events: all;
-        border-radius: 50%;
       }
       .gs-range::-webkit-slider-runnable-track { background: transparent; }
       .gs-range::-moz-range-track { background: transparent; }
@@ -68,50 +69,120 @@ function RangeSlider({
   if (Platform.OS === 'web') {
     const minPct = ((minValue - min) / (max - min)) * 100;
     const maxPct = ((maxValue - min) / (max - min)) * 100;
-    const minZ = minPct > 90 ? 3 : 1;
-
-    return createElement('div', {
-      style: { position: 'relative', height: 32, width: '100%', display: 'flex', alignItems: 'center' },
-    },
-      createElement('div', {
-        style: { position: 'absolute', left: 0, right: 0, height: 4, backgroundColor: COLORS.cardBorder, borderRadius: 2 },
-      }),
-      createElement('div', {
-        style: { position: 'absolute', left: `${minPct}%`, width: `${maxPct - minPct}%`, height: 4, backgroundColor: COLORS.primary, borderRadius: 2 },
-      }),
+    return createElement(
+      'div',
+      { style: { position: 'relative', height: 36, width: '100%', display: 'flex', alignItems: 'center' } },
+      // track background
+      createElement('div', { style: { position: 'absolute', left: 0, right: 0, height: TRACK_H, backgroundColor: COLORS.cardBorder, borderRadius: 2 } }),
+      // active fill
+      createElement('div', { style: { position: 'absolute', left: `${minPct}%`, width: `${maxPct - minPct}%`, height: TRACK_H, backgroundColor: COLORS.primary, borderRadius: 2 } }),
+      // min input (lower z when near right edge so max thumb stays grabbable)
       createElement('input', {
         type: 'range', className: 'gs-range',
         min, max, value: minValue,
+        style: { zIndex: minPct > 90 ? 3 : 1 },
         onChange: (e: any) => { const v = Number(e.target.value); if (v < maxValue) onMinChange(v); },
-        style: { zIndex: minZ },
       }),
+      // max input
       createElement('input', {
         type: 'range', className: 'gs-range',
         min, max, value: maxValue,
-        onChange: (e: any) => { const v = Number(e.target.value); if (v > minValue) onMaxChange(v); },
         style: { zIndex: 2 },
+        onChange: (e: any) => { const v = Number(e.target.value); if (v > minValue) onMaxChange(v); },
       }),
     );
   }
 
-  if (!NativeSlider) return null;
+  // ── Native ───────────────────────────────────────────────────────────────────
+  // Local state drives rendering; refs give PanResponder fresh values without
+  // stale-closure issues (PanResponder is created once via useRef).
+
+  const [minVal, setMinVal] = useState(minValue);
+  const [maxVal, setMaxVal] = useState(maxValue);
+  const [trackWidth, setTrackWidth] = useState(0);
+
+  const minRef = useRef(minValue);
+  const maxRef = useRef(maxValue);
+  const twRef  = useRef(0);   // track width ref (PanResponder-accessible)
+
+  // Sync when parent resets the sheet
+  useEffect(() => { minRef.current = minValue; setMinVal(minValue); }, [minValue]);
+  useEffect(() => { maxRef.current = maxValue; setMaxVal(maxValue); }, [maxValue]);
+
+  const toValue = (r: number) => Math.round(min + r * (max - min));
+  const toRatio = (v: number) => (v - min) / (max - min);
+  const clamp   = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+  const minStart = useRef(0);
+  const maxStart = useRef(0);
+
+  const minPan = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => { minStart.current = toRatio(minRef.current); },
+      onPanResponderMove: (_, g) => {
+        if (!twRef.current) return;
+        const ratio = clamp(minStart.current + g.dx / twRef.current, 0, toRatio(maxRef.current) - 0.04);
+        const val   = toValue(ratio);
+        minRef.current = val;
+        setMinVal(val);
+        onMinChange(val);
+      },
+    }),
+  ).current;
+
+  const maxPan = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => { maxStart.current = toRatio(maxRef.current); },
+      onPanResponderMove: (_, g) => {
+        if (!twRef.current) return;
+        const ratio = clamp(maxStart.current + g.dx / twRef.current, toRatio(minRef.current) + 0.04, 1);
+        const val   = toValue(ratio);
+        maxRef.current = val;
+        setMaxVal(val);
+        onMaxChange(val);
+      },
+    }),
+  ).current;
+
+  const minPct = toRatio(minVal);
+  const maxPct = toRatio(maxVal);
+
   return (
-    <View style={{ width: '100%' }}>
-      <NativeSlider
-        style={styles.slider}
-        minimumValue={min} maximumValue={max} value={minValue}
-        onValueChange={(v: number) => { const r = Math.round(v); if (r < maxValue) onMinChange(r); }}
-        minimumTrackTintColor={COLORS.primary} maximumTrackTintColor={COLORS.cardBorder} thumbTintColor={COLORS.primary}
+    <View
+      style={styles.nativeTrackContainer}
+      onLayout={(e) => {
+        const w = e.nativeEvent.layout.width - THUMB;
+        twRef.current = w;
+        setTrackWidth(w);
+      }}
+    >
+      {/* Background track */}
+      <View style={[styles.nativeTrack, { left: THUMB / 2, right: THUMB / 2 }]} />
+
+      {/* Active fill between thumbs */}
+      <View style={[
+        styles.nativeTrackFill,
+        { left: THUMB / 2 + minPct * trackWidth, width: Math.max(0, (maxPct - minPct) * trackWidth) },
+      ]} />
+
+      {/* Min thumb */}
+      <View
+        {...minPan.panHandlers}
+        style={[styles.nativeThumb, { left: minPct * trackWidth }]}
       />
-      <NativeSlider
-        style={styles.slider}
-        minimumValue={min} maximumValue={max} value={maxValue}
-        onValueChange={(v: number) => { const r = Math.round(v); if (r > minValue) onMaxChange(r); }}
-        minimumTrackTintColor={COLORS.cardBorder} maximumTrackTintColor={COLORS.primary} thumbTintColor={COLORS.primary}
+
+      {/* Max thumb */}
+      <View
+        {...maxPan.panHandlers}
+        style={[styles.nativeThumb, { left: maxPct * trackWidth, zIndex: 2 }]}
       />
     </View>
   );
 }
+
+// ── Sheet ─────────────────────────────────────────────────────────────────────
 
 interface FiltersBottomSheetProps {
   visible: boolean;
@@ -119,24 +190,23 @@ interface FiltersBottomSheetProps {
 }
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
-const SHEET_HEIGHT = Math.min(SCREEN_HEIGHT * 0.75, 600);
+const SHEET_HEIGHT  = Math.min(SCREEN_HEIGHT * 0.75, 600);
 
-const LOOKING_FOR_OPTIONS = ['Men', 'Women', 'LGBTQ+'] as const;
-const LOCATION_OPTIONS = ['Nearby', 'Same City', 'Anywhere'] as const;
-const RELIGION_OPTIONS = ['Any', 'Hindu', 'Muslim', 'Christian', 'Sikh', 'Jain', 'Buddhist', 'Other'] as const;
-const PROFESSION_OPTIONS = ['Any', 'Student', 'Working Professional', 'Founder / Entrepreneur'] as const;
-
+const LOOKING_FOR_OPTIONS  = ['Men', 'Women', 'LGBTQ+'] as const;
+const LOCATION_OPTIONS     = ['Nearby', 'Same City', 'Anywhere'] as const;
+const RELIGION_OPTIONS     = ['Any', 'Hindu', 'Muslim', 'Christian', 'Sikh', 'Jain', 'Buddhist', 'Other'] as const;
+const PROFESSION_OPTIONS   = ['Any', 'Student', 'Working Professional', 'Founder / Entrepreneur'] as const;
 
 export default function FiltersBottomSheet({ visible, onClose }: FiltersBottomSheetProps) {
   const { filters, updateFilters } = useApp();
 
   const [lookingFor, setLookingFor] = useState(filters.lookingFor);
-  const [minAge, setMinAge] = useState(filters.minAge);
-  const [maxAge, setMaxAge] = useState(filters.maxAge);
-  const [location, setLocation] = useState(filters.location);
-  const [religion, setReligion] = useState<string | null>(filters.religion);
+  const [minAge, setMinAge]         = useState(filters.minAge);
+  const [maxAge, setMaxAge]         = useState(filters.maxAge);
+  const [location, setLocation]     = useState(filters.location);
+  const [religion, setReligion]     = useState<string | null>(filters.religion);
   const [profession, setProfession] = useState<string | null>(filters.profession);
-  const [showReligionDrop, setShowReligionDrop] = useState(false);
+  const [showReligionDrop, setShowReligionDrop]     = useState(false);
   const [showProfessionDrop, setShowProfessionDrop] = useState(false);
 
   const slideAnim = useRef(new Animated.Value(SHEET_HEIGHT)).current;
@@ -181,23 +251,17 @@ export default function FiltersBottomSheet({ visible, onClose }: FiltersBottomSh
   return (
     <Modal transparent visible={visible} animationType="none" onRequestClose={handleClose}>
       <View style={{ flex: 1 }}>
-        {/* Dark scrim — tap to dismiss */}
         <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={handleClose} />
 
-        {/* Close icon — floats above the sheet, animates in sync */}
         <Animated.View style={[styles.floatingCloseWrap, { transform: [{ translateY: slideAnim }] }]}>
           <TouchableOpacity onPress={handleClose} activeOpacity={0.75}>
-            <Image
-              source={require('../../assets/icons/closefilter.png')}
-              style={styles.closeIcon}
-              resizeMode="contain"
-            />
+            <Image source={require('../../assets/icons/closefilter.png')} style={styles.closeIcon} resizeMode="contain" />
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Bottom sheet — slides up with the same animation */}
         <Animated.View style={[styles.sheet, { transform: [{ translateY: slideAnim }] }]}>
           <ScrollView showsVerticalScrollIndicator={false}>
+
             <Text style={styles.sectionLabel}>I'm looking for</Text>
             <ChipRow options={LOOKING_FOR_OPTIONS} selected={lookingFor} onSelect={setLookingFor} />
 
@@ -206,6 +270,7 @@ export default function FiltersBottomSheet({ visible, onClose }: FiltersBottomSh
               <Text style={styles.ageLabel}>{minAge}</Text>
               <Text style={styles.ageDash}>–</Text>
               <Text style={styles.ageLabel}>{maxAge}</Text>
+              <Text style={styles.ageDash}>yrs</Text>
             </View>
             <RangeSlider
               min={18} max={60}
@@ -278,31 +343,9 @@ export default function FiltersBottomSheet({ visible, onClose }: FiltersBottomSh
 
 const styles = StyleSheet.create({
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)' },
-
-  // Close icon wrapper — positioned just above the sheet top
-  floatingCloseWrap: {
-    position: 'absolute',
-    bottom: SHEET_HEIGHT + 12,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    zIndex: 10,
-  },
+  floatingCloseWrap: { position: 'absolute', bottom: SHEET_HEIGHT + 12, left: 0, right: 0, alignItems: 'center', zIndex: 10 },
   closeIcon: { width: 44, height: 44 },
-
-  sheet: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: SHEET_HEIGHT,
-    backgroundColor: COLORS.card,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.lg,
-  },
-
+  sheet: { position: 'absolute', bottom: 0, left: 0, right: 0, height: SHEET_HEIGHT, backgroundColor: COLORS.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: SPACING.lg, paddingTop: SPACING.lg },
   sectionLabel: { color: COLORS.textPrimary, fontSize: 14, fontFamily: FONTS.semiBold, marginTop: SPACING.lg, marginBottom: SPACING.sm },
   optional: { color: COLORS.textSecondary, fontFamily: FONTS.regular },
   chipRow: { flexDirection: 'row', gap: 10 },
@@ -310,10 +353,22 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   chipText: { color: COLORS.textSecondary, fontSize: 14, fontFamily: FONTS.medium },
   chipTextActive: { color: COLORS.textPrimary },
-  ageLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  ageLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
   ageLabel: { color: COLORS.textPrimary, fontSize: 14, fontFamily: FONTS.semiBold },
-  ageDash: { color: COLORS.textSecondary, fontSize: 14, fontFamily: FONTS.regular },
-  slider: { width: '100%', height: 30 },
+  ageDash: { color: COLORS.textSecondary, fontSize: 14 },
+  // Native dual-thumb slider
+  nativeTrackContainer: { width: '100%', height: 44, justifyContent: 'center' },
+  nativeTrack: { position: 'absolute', height: TRACK_H, backgroundColor: COLORS.cardBorder, borderRadius: 2 },
+  nativeTrackFill: { position: 'absolute', height: TRACK_H, backgroundColor: COLORS.primary, borderRadius: 2, top: (44 - TRACK_H) / 2 },
+  nativeThumb: {
+    position: 'absolute',
+    width: THUMB, height: THUMB, borderRadius: THUMB / 2,
+    backgroundColor: COLORS.primary,
+    borderWidth: 2, borderColor: '#fff',
+    top: (44 - THUMB) / 2,
+    elevation: 4,
+    shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
+  },
   dropdown: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.chipInactive, borderRadius: BORDER_RADIUS.md, paddingHorizontal: 14, paddingVertical: 14, borderWidth: 1, borderColor: COLORS.chipBorder },
   dropdownPlaceholder: { color: COLORS.textMuted, fontSize: 14, fontFamily: FONTS.regular },
   dropdownValue: { color: COLORS.textPrimary, fontSize: 14, fontFamily: FONTS.regular },
