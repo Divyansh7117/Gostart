@@ -1,9 +1,5 @@
-// Swipe-to-search button — matches the Figma exactly.
-// Two states:
-//   IDLE:   dark bg, red >>> circle on LEFT, label text to the right
-//   SWIPED: full crimson bg, "Finding match..." centered, >>> circle on RIGHT
-//
-// The bg "fills" with crimson as you drag (Animated.Value interpolation).
+// swipe-to-search button — background fills crimson as you drag right
+// PanResponder ref trick so stale closures don't capture old onSwipe/disabled values
 
 import React, { useRef, useState } from 'react';
 import {
@@ -39,8 +35,7 @@ export default function SwipeButton({
   const barWidth = Math.min(width - 48, MAX_BAR_WIDTH);
   const maxSwipe = barWidth - THUMB_SIZE - 8;
 
-  // Keep a ref to the latest onSwipe/disabled so the PanResponder (created once)
-  // always calls the current callback and sees the current disabled state.
+  // store latest props in refs so PanResponder (created once) always sees fresh values
   const onSwipeRef = useRef(onSwipe);
   const disabledRef = useRef(disabled);
   onSwipeRef.current = onSwipe;
@@ -57,7 +52,7 @@ export default function SwipeButton({
 
       onPanResponderRelease: (_, g) => {
         if (g.dx > maxSwipe * 0.8) {
-          // Snapped far enough → commit the swipe
+          // dragged far enough — commit and fire the callback
           Animated.spring(translateX, {
             toValue: maxSwipe,
             useNativeDriver: true,
@@ -66,7 +61,7 @@ export default function SwipeButton({
             onSwipeRef.current?.();
           });
         } else {
-          // Not far enough → spring back
+          // not far enough — spring back to idle
           Animated.spring(translateX, {
             toValue: 0,
             useNativeDriver: true,
@@ -77,14 +72,14 @@ export default function SwipeButton({
     }),
   ).current;
 
-  // Label fades out as the thumb slides right
+  // label fades out as the thumb moves right
   const labelOpacity = translateX.interpolate({
     inputRange: [0, maxSwipe * 0.4],
     outputRange: [1, 0],
     extrapolate: 'clamp',
   });
 
-  // Bar background fills with crimson as you drag
+  // background color interpolates from dark to crimson
   const bgColor = translateX.interpolate({
     inputRange: [0, maxSwipe],
     outputRange: ['#1A1A1A', '#7B0D1E'],
@@ -99,7 +94,6 @@ export default function SwipeButton({
     </>
   );
 
-  // ── SWIPED state ────────────────────────────────────────────────────────────
   if (isSwiped) {
     return (
       <View style={[styles.container, styles.containerSwiped, { maxWidth: barWidth }]}>
@@ -111,7 +105,6 @@ export default function SwipeButton({
     );
   }
 
-  // ── IDLE state ──────────────────────────────────────────────────────────────
   return (
     <Animated.View
       style={[

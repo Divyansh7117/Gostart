@@ -23,6 +23,7 @@ export default function BuyCreditsScreen({ navigation }: Props) {
   const handleBuyCredits = async () => {
     setLoading(true);
     try {
+      // initiate order, then mock a payment and confirm server-side
       const orderData = await initiatePayment('pack_5');
       const mockPaymentId = `pay_demo_${Date.now()}`;
       const confirmData = await confirmPayment('pack_5', mockPaymentId, orderData.orderId);
@@ -44,7 +45,6 @@ export default function BuyCreditsScreen({ navigation }: Props) {
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       <CrimsonGlow />
 
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
@@ -55,17 +55,15 @@ export default function BuyCreditsScreen({ navigation }: Props) {
         </View>
       </View>
 
-      {/* Card + button grouped and centered vertically */}
       <View style={styles.centerGroup}>
         <View style={styles.packageCard}>
-          {/* Decorative background coin */}
+          {/* decorative background coin, partially off-screen */}
           <Image
             source={require('../../assets/icons/boycreditsbg.png')}
             style={styles.bgCoin}
             resizeMode="contain"
           />
 
-          {/* Price row: ₹ icon + amount */}
           <View style={styles.priceRow}>
             <View style={styles.rupeeIcon}>
               <Text style={styles.rupeeSymbol}>₹</Text>
@@ -75,15 +73,12 @@ export default function BuyCreditsScreen({ navigation }: Props) {
 
           <Text style={styles.creditsLabel}>5 Credits</Text>
 
-          {/* 5 overlapping coins */}
           <View style={styles.coinsRow}>
             <Image source={require('../../assets/icons/5coins.png')} style={styles.coinsImage} resizeMode="contain" />
           </View>
 
-          {/* Divider */}
           <View style={styles.divider} />
 
-          {/* Benefits */}
           <View style={styles.benefitsWrap}>
             {BENEFITS.map((benefit) => (
               <View key={benefit} style={styles.benefitRow}>
@@ -93,11 +88,9 @@ export default function BuyCreditsScreen({ navigation }: Props) {
             ))}
           </View>
 
-          {/* One Time note */}
           <Text style={styles.oneTimeNote}>One Time | No Subscription</Text>
         </View>
 
-        {/* Button sits just below the card */}
         <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
           <TouchableOpacity style={styles.buyBtn} onPress={handleBuyCredits} disabled={loading} activeOpacity={0.85}>
             {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buyBtnText}>Buy 5 Credits</Text>}
@@ -153,7 +146,6 @@ const styles = StyleSheet.create({
     position: 'relative',
     borderWidth: 0,
   },
-
 
   bgCoin: {
     position: 'absolute',

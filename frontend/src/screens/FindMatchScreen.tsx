@@ -17,16 +17,11 @@ import type { FindMatchStackParamList } from '../types';
 
 type Props = StackScreenProps<FindMatchStackParamList, 'FindMatch'>;
 
-// Figma frame is 393px wide — scale the bg placement proportionally. Source photo
-// is 786×1062 (portrait); we fill the box width but keep the photo's natural ratio
-// for height and anchor at the top so the heads are never cropped.
+// Figma frame is 393px wide — scale background image placement proportionally
 const FIGMA_FRAME_W = 393;
 const IMG_NATURAL_RATIO = 1062 / 786;
 
-// Compute bg-image placement from the *current* viewport. Reading this reactively
-// (instead of a module-level Dimensions snapshot) keeps the image in the same spot
-// across reloads/restarts and on window resize. Width is clamped so it stays
-// phone-like on wide desktop browsers.
+// reactive layout hook so image placement stays correct on resize and across reloads
 function useBgImageLayout() {
   const { width, height } = useWindowDimensions();
   const frameW = Math.min(width, 480);
@@ -46,6 +41,7 @@ export default function FindMatchScreen({ navigation }: Props) {
   const { credits, filters, refreshCredits } = useApp();
   const insets = useSafeAreaInsets();
   const [showFilters, setShowFilters] = useState(false);
+  // bump key on focus so SwipeButton resets to idle every time we come back here
   const [swipeKey, setSwipeKey] = useState(0);
   const hasCredits = credits > 0;
   const bg = useBgImageLayout();
@@ -53,7 +49,7 @@ export default function FindMatchScreen({ navigation }: Props) {
   useFocusEffect(
     useCallback(() => {
       setSwipeKey((k) => k + 1);
-      refreshCredits(); // sync true balance so the no-credits state always shows when out
+      refreshCredits();
     }, []),
   );
 
@@ -62,7 +58,6 @@ export default function FindMatchScreen({ navigation }: Props) {
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       <CrimsonGlow />
 
-      {/* Background image — fixed height, fades to dark */}
       <View style={[styles.bgClip, { height: bg.bgHeight }]}>
         <Image
           source={require('../../assets/icons/Background.png')}
@@ -76,7 +71,6 @@ export default function FindMatchScreen({ navigation }: Props) {
         />
       </View>
 
-      {/* Header — logo + brand + credits widget */}
       <View style={[styles.topBar, { paddingTop: insets.top + 12 }]}>
         <View style={styles.brandRow}>
           <Image source={require('../../assets/icons/Logomark.png')} style={styles.logo} resizeMode="contain" />
@@ -85,7 +79,6 @@ export default function FindMatchScreen({ navigation }: Props) {
         <CreditsWidget onPress={() => navigation.navigate('BuyCredits')} />
       </View>
 
-      {/* Bottom content — centered on screen */}
       <View style={[styles.bottomContent, { paddingBottom: insets.bottom + 42 }]}>
         <View style={styles.centeredContent}>
           <Text style={styles.headline}>Ready to find your{'\n'}match?</Text>

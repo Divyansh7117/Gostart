@@ -43,6 +43,7 @@ const MessagesStack = createStackNavigator<MessagesStackParamList>();
 const ProfileStack = createStackNavigator<ProfileStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
+// dark theme wired into NavigationContainer so headers/backgrounds match everywhere
 const GoStartTheme = {
   dark: true,
   colors: {
@@ -60,8 +61,6 @@ const GoStartTheme = {
     heavy:   { fontFamily: 'Outfit_700Bold',    fontWeight: '900' as const },
   },
 };
-
-// ── Stack navigators ───────────────────────────────────────────────────────────
 
 const FindMatchNavigator = () => (
   <FindMatchStack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: COLORS.background } }}>
@@ -94,12 +93,6 @@ const ProfileNavigator = () => (
   </ProfileStack.Navigator>
 );
 
-// ── Custom tab bar ─────────────────────────────────────────────────────────────
-// Matches the Figma spec exactly:
-//   • Floating dark pill (rgba 22,22,22 / 0.8) with glass overlay
-//   • Find Match tab always elevated with logomark circle (rgba 113,0,20 / 0.6)
-//   • Other tabs: 24px Ionicons, label color #767676 inactive / #F2F1ED active
-
 type TabConfig = {
   name: keyof MainTabParamList;
   label: string;
@@ -113,24 +106,21 @@ const TABS: TabConfig[] = [
   { name: 'ProfileTab',   label: 'Profile',    icon: require('../../assets/icons/profile.png') },
 ];
 
-// Total container = 15px top gap + 84px pill
 const PILL_TOP   = 15;
 const PILL_HEIGHT = 84;
 const CONTAINER_HEIGHT = PILL_TOP + PILL_HEIGHT;
 
-// Full-screen flow/detail screens that should take over the whole screen —
-// the floating tab bar is hidden on these so it never covers their content.
+// hide the floating tab bar on full-screen flows so it never covers content
 const HIDE_TAB_BAR_ON = ['Searching', 'NoMatch', 'MatchRevealed', 'MatchesCarousel', 'Chat', 'MatchProfile', 'BuyCredits', 'BuyCreditsProfile'];
 
 function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const bottomPad = insets.bottom;
-  // On wide screens (tablets/foldables) keep the bar a centered, phone-width column
+  // on wide screens, keep the bar centered within the phone-width column
   const sideInset = Math.max(0, (width - CONTENT_MAX_WIDTH) / 2);
 
-  // Resolve the focused route inside the active tab's nested stack. Falls back to
-  // the tab's own name when sitting on the stack's initial route.
+  // figure out which screen is actually focused inside the active nested stack
   const activeTab = state.routes[state.index];
   const focusedRouteName = getFocusedRouteNameFromRoute(activeTab) ?? activeTab.name;
   if (HIDE_TAB_BAR_ON.includes(focusedRouteName)) {
@@ -139,12 +129,10 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
 
   return (
     <View style={[styles.tabBarContainer, { height: CONTAINER_HEIGHT + bottomPad }]}>
-      {/* Floating pill — dark frosted glass */}
       <View style={[styles.pill, { bottom: bottomPad, left: sideInset, right: sideInset }]}>
         <View style={styles.pillOverlay} />
       </View>
 
-      {/* Tab items row — aligned to pill baseline */}
       <View style={[styles.menu, { bottom: bottomPad, left: sideInset + 24, right: sideInset + 24 }]}>
         {TABS.map((tab, index) => {
           const focused = state.index === index;
@@ -162,7 +150,7 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
           };
 
           if (isFindMatch) {
-            // Always-elevated primary tab — sits above the pill
+            // Find Match is always elevated above the pill with a crimson circle
             return (
               <TouchableOpacity
                 key={tab.name}
@@ -207,8 +195,6 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   );
 }
 
-// ── Main tab navigator ─────────────────────────────────────────────────────────
-
 const MainTabNavigator = () => (
   <Tab.Navigator
     tabBar={(props) => <CustomTabBar {...props} />}
@@ -221,11 +207,10 @@ const MainTabNavigator = () => (
   </Tab.Navigator>
 );
 
-// ── Root navigator ─────────────────────────────────────────────────────────────
-
 export default function AppNavigator() {
   const { isLoggedIn, isLoading, needsOnboarding } = useApp();
 
+  // show spinner while we check AsyncStorage for an existing session
   if (isLoading) {
     return (
       <View style={styles.loading}>
@@ -248,10 +233,7 @@ export default function AppNavigator() {
   );
 }
 
-// ── Styles ─────────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  // Outer container — positioned absolutely at the bottom
   tabBarContainer: {
     position: 'absolute',
     bottom: 0,
@@ -259,8 +241,6 @@ const styles = StyleSheet.create({
     right: 0,
     height: CONTAINER_HEIGHT,
   },
-
-  // The floating dark pill (84px tall, starts 15px from top of container)
   pill: {
     position: 'absolute',
     left: 0,
@@ -271,14 +251,10 @@ const styles = StyleSheet.create({
     borderRadius: 26,
     overflow: 'hidden',
   },
-
-  // White glass overlay on top of the pill
   pillOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
-
-  // Row of 4 tab items, aligned to bottom of pill
   menu: {
     position: 'absolute',
     left: 24,
@@ -289,8 +265,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-end',
   },
-
-  // ── Find Match (primary elevated tab) ───────────────────────────────────────
   findMatchItem: {
     width: 78,
     height: 86.5,
@@ -338,8 +312,6 @@ const styles = StyleSheet.create({
     color: '#F2F1ED',
     textAlign: 'center',
   },
-
-  // ── Regular tabs ────────────────────────────────────────────────────────────
   tabItem: {
     width: 78,
     height: 70,
@@ -369,7 +341,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#F2F1ED',
     marginTop: 2,
   },
-
   loading: {
     flex: 1,
     justifyContent: 'center',

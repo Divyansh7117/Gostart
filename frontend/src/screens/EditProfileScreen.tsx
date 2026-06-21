@@ -15,6 +15,7 @@ type Props = StackScreenProps<ProfileStackParamList, 'EditProfile'>;
 export default function EditProfileScreen({ navigation }: Props) {
   const { user } = useApp();
   const insets = useSafeAreaInsets();
+  // pre-fill with whatever the user already has on their profile
   const [name, setName] = useState(user?.name ?? '');
   const [age, setAge] = useState(user?.age ? String(user.age) : '');
   const [city, setCity] = useState('');
@@ -126,6 +127,7 @@ export default function EditProfileScreen({ navigation }: Props) {
   );
 }
 
+// small helper to keep the label + input pattern DRY
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <View style={fieldStyles.wrap}>

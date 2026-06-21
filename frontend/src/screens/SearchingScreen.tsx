@@ -1,4 +1,4 @@
-// Searching screen — animated loading state while backend finds a match.
+// animated loading screen while the backend searches for a match
 
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Animated, StatusBar, Image } from 'react-native';
@@ -45,6 +45,7 @@ export default function SearchingScreen({ navigation, route }: Props) {
     try {
       const data = await startSearch(filters);
       if (data.success) {
+        // poll every second until the backend either finds a match or gives up
         pollInterval.current = setInterval(() => pollForResult(data.searchId), 1000);
       }
     } catch {

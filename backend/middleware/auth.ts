@@ -1,11 +1,11 @@
-// JWT auth middleware — typed with Express's Request/Response generics.
+// jwt auth middleware — verifies the bearer token before letting requests through
 
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
 export const JWT_SECRET = process.env.JWT_SECRET ?? 'gostart_secret_key_2024';
 
-// Extend Express's Request so downstream handlers can access req.user safely
+// extends express Request so downstream handlers can access req.user without casting
 export interface AuthenticatedRequest extends Request {
   user: {
     userId: string;
@@ -21,6 +21,7 @@ export const authMiddleware = (
 ): void => {
   const authHeader = req.headers.authorization;
 
+  // reject anything that doesn't have "Bearer <token>" in the header
   if (!authHeader?.startsWith('Bearer ')) {
     res.status(401).json({ success: false, message: 'Access denied. Please log in first.' });
     return;

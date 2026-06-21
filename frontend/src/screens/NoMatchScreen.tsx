@@ -25,6 +25,7 @@ export default function NoMatchScreen({ navigation }: Props) {
         <Text style={styles.subtitle}>
           We're still looking.{'\n'}Try adjusting your filters to expand the search.
         </Text>
+        {/* both buttons go back to FindMatch so the user can tweak filters and retry */}
         <TouchableOpacity style={styles.adjustBtn} onPress={() => navigation.navigate('FindMatch')} activeOpacity={0.85}>
           <Ionicons name="options-outline" size={18} color={COLORS.textPrimary} />
           <Text style={styles.adjustBtnText}>Adjust Filters</Text>

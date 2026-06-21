@@ -15,15 +15,14 @@ type Props = StackScreenProps<MessagesStackParamList, 'MatchProfile'>;
 
 export default function MatchProfileScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
-  // The profile passed in may be partial (e.g. opened from the messages list),
-  // so fetch the full record by id to fill in the bio, tags and lifestyle.
+  // show the partial profile we already have, then swap in the full one once fetched
   const [profile, setProfile] = useState<Profile>(route.params.profile);
 
   useEffect(() => {
     let active = true;
     getProfile(route.params.profile.id)
       .then((data) => { if (active && data.success) setProfile(data.profile); })
-      .catch(() => { /* keep the partial profile we already have */ });
+      .catch(() => { /* keep whatever partial data we already have */ });
     return () => { active = false; };
   }, [route.params.profile.id]);
 

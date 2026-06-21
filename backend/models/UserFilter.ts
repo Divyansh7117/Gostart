@@ -1,5 +1,5 @@
-// UserFilter model — each user's saved search preferences.
-// One document per user (userId is unique). Upserted on every save.
+// UserFilter model — stores each user's search preferences in mongo so they persist across sessions
+// one document per user, upserted every time they save from the filters screen
 
 import mongoose, { Schema, Document } from 'mongoose';
 

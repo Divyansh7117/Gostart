@@ -1,7 +1,5 @@
-// Mandatory onboarding — every user completes their profile here right after
-// signing up, across 3 pages, including a device-picked profile photo.
-// When finished, the saved user has onboardingComplete=true, which flips the
-// root navigator from this screen to the main app automatically.
+// 3-page profile setup new users go through right after signing up
+// when finished, onboardingComplete flips to true and the navigator sends them to main app
 
 import React, { useMemo, useState } from 'react';
 import {
@@ -27,6 +25,7 @@ export default function OnboardingScreen() {
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
 
+  // pre-fill from any partial data the user already has
   const [photo, setPhoto] = useState(user?.photo ?? '');
   const [name, setName] = useState(user?.name ?? '');
   const [age, setAge] = useState(user?.age ? String(user.age) : '');
@@ -44,6 +43,7 @@ export default function OnboardingScreen() {
   const [firstDateIdea, setFirstDateIdea] = useState(user?.firstDateIdea ?? '');
   const [loveLanguage, setLoveLanguage] = useState(user?.loveLanguage ?? '');
 
+  // parse the comma-separated tags string into an array only when it changes
   const parsedTags = useMemo(
     () => tags.split(',').map((t) => t.trim()).filter(Boolean),
     [tags],
@@ -67,7 +67,7 @@ export default function OnboardingScreen() {
       });
       if (!result.canceled && result.assets.length > 0) {
         const asset = result.assets[0];
-        // Persist as a base64 data URI so it survives reloads (works on web + native)
+        // store as base64 data URI so it works on both web and native
         const uri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
         setPhoto(uri);
       }
@@ -118,7 +118,8 @@ export default function OnboardingScreen() {
         loveLanguage: loveLanguage.trim(),
         photo,
       });
-      if (data.success) setUser(data.user); // flips navigator to Main
+      // setting user with onboardingComplete=true flips the root navigator to Main
+      if (data.success) setUser(data.user);
     } catch (err) {
       Alert.alert('Could not save', err instanceof Error ? err.message : 'Try again.');
     } finally {
@@ -139,7 +140,6 @@ export default function OnboardingScreen() {
       <CrimsonGlow />
 
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        {/* Header */}
         <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
           {page > 0 ? (
             <TouchableOpacity onPress={() => setPage((p) => p - 1)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -147,7 +147,7 @@ export default function OnboardingScreen() {
             </TouchableOpacity>
           ) : <View style={{ width: 24 }} />}
 
-          {/* Progress dots */}
+          {/* progress dots — wider dot = current page, filled = done */}
           <View style={styles.dotsRow}>
             {Array.from({ length: TOTAL_PAGES }).map((_, i) => (
               <View key={i} style={[styles.dot, i === page && styles.dotActive, i < page && styles.dotDone]} />
@@ -230,7 +230,6 @@ export default function OnboardingScreen() {
           )}
         </ScrollView>
 
-        {/* Footer button */}
         <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
           <TouchableOpacity style={styles.primaryBtn} onPress={next} disabled={loading} activeOpacity={0.85}>
             {loading
@@ -243,6 +242,7 @@ export default function OnboardingScreen() {
   );
 }
 
+// reusable label + TextInput combo to keep the JSX clean
 function Field({
   label, ...inputProps
 }: { label: string } & React.ComponentProps<typeof TextInput>) {

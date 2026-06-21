@@ -28,7 +28,7 @@ export default function ProfileScreen({ navigation }: Props) {
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
 
   const handleLogout = () => {
-    // RN Web's Alert.alert ignores button callbacks, so confirm via window.confirm there
+    // RN Web ignores Alert button callbacks so we use window.confirm there
     if (Platform.OS === 'web') {
       // eslint-disable-next-line no-alert
       if (typeof window !== 'undefined' && window.confirm('Are you sure you want to log out?')) {
@@ -44,7 +44,7 @@ export default function ProfileScreen({ navigation }: Props) {
 
   const handlePickPhoto = () => {
     if (Platform.OS === 'web') {
-      // Web: trigger native file input
+      // web doesn't have expo-image-picker, so we use a hidden file input instead
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = 'image/*';
@@ -113,7 +113,6 @@ export default function ProfileScreen({ navigation }: Props) {
           </View>
         </LinearGradient>
 
-        {/* Credits card */}
         <View style={styles.creditsCard}>
           <View>
             <Text style={styles.creditsCardLabel}>Credits Balance</Text>
@@ -125,7 +124,6 @@ export default function ProfileScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
-        {/* Menu */}
         <View style={styles.menuSection}>
           {menuItems.slice(0, 5).map((item, index) => (
             <TouchableOpacity

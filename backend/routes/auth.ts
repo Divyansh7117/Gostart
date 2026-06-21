@@ -1,18 +1,3 @@
-// ====================================================================
-// Auth Routes — Register, Login, /me
-//
-// HOW IT WORKS:
-//   POST /register  → hashes the password with bcrypt (10 rounds),
-//                     stores the user in MongoDB, returns a JWT.
-//   POST /login     → finds the user by email, compares bcrypt hash,
-//                     returns a signed JWT valid for 7 days.
-//   GET  /me        → verifies the JWT, reads the user from MongoDB
-//                     (always fresh — so credits are never stale).
-//
-// WHY JWT? Self-contained tokens — no server-side sessions to store.
-// Every protected request just verifies the signature.
-// ====================================================================
-
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -40,12 +25,14 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    // bcrypt compare handles the hashing — we never store plain text
     const isPasswordCorrect = await bcrypt.compare(password, user.passwordHash);
     if (!isPasswordCorrect) {
       res.status(401).json({ success: false, message: 'Incorrect password. Try again.' });
       return;
     }
 
+    // token lasts 7 days so users don't get logged out constantly
     const token = jwt.sign(
       { userId: user._id, email: user.email, name: user.name },
       JWT_SECRET,
@@ -91,7 +78,7 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Email must be unique (also enforced by a unique index on the schema)
+    // check if email is taken before trying to insert
     const existing = await User.findOne({ email: email.toLowerCase().trim() });
     if (existing) {
       res.status(409).json({ success: false, message: 'An account with this email already exists.' });
@@ -117,9 +104,10 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
       firstDateIdea: firstDateIdea?.trim() || undefined,
       loveLanguage: loveLanguage?.trim() || undefined,
       photo: photo?.trim() || undefined,
-      credits: 2, // every new user gets 2 free credits
+      credits: 2, // every new user gets 2 free credits to start
     });
 
+    // also create a matchable profile so other users can find this person
     await Profile.findOneAndUpdate(
       { _id: newUser._id },
       {
@@ -187,7 +175,7 @@ router.get('/me', authMiddleware, async (req: Request, res: Response): Promise<v
   try {
     const { userId } = (req as AuthenticatedRequest).user;
 
-    // Always read from MongoDB so credits are live, not stale from the JWT payload
+    // always hit mongo fresh so credits are never stale from the jwt payload
     const user = await User.findById(userId).select('-passwordHash');
     if (!user) {
       res.status(404).json({ success: false, message: 'User not found.' });
@@ -223,8 +211,7 @@ router.get('/me', authMiddleware, async (req: Request, res: Response): Promise<v
   }
 });
 
-// PUT /api/auth/profile — save the full profile (onboarding) and mark it complete.
-// Updates both the User record and the matchable Profile record in one shot.
+// PUT /api/auth/profile — saves onboarding data and marks it complete
 router.put('/profile', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId } = (req as AuthenticatedRequest).user;
@@ -239,7 +226,7 @@ router.put('/profile', authMiddleware, async (req: Request, res: Response): Prom
 
     const cleanTags = Array.isArray(tags) ? tags.map((t) => t.trim()).filter(Boolean) : undefined;
 
-    // Only overwrite fields that were actually provided
+    // only overwrite fields that were actually provided in the request
     const userUpdate: Record<string, unknown> = { onboardingComplete: true };
     const set = (k: string, v: unknown) => { if (v !== undefined && v !== null && v !== '') userUpdate[k] = v; };
     set('name', name?.trim());
@@ -260,7 +247,7 @@ router.put('/profile', authMiddleware, async (req: Request, res: Response): Prom
     const user = await User.findByIdAndUpdate(userId, { $set: userUpdate }, { new: true }).select('-passwordHash');
     if (!user) { res.status(404).json({ success: false, message: 'User not found.' }); return; }
 
-    // Mirror onto the matchable Profile so this user can be discovered by others
+    // mirror the same data onto the Profile so this user shows up in searches
     const profileUpdate: Record<string, unknown> = {};
     const setP = (k: string, v: unknown) => { if (v !== undefined && v !== null && v !== '') profileUpdate[k] = v; };
     setP('name', name?.trim());

@@ -19,8 +19,7 @@ export default function MessagesScreen({ navigation }: Props) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Refetch every time the screen is focused so newly started conversations
-  // (from a match or the carousel) always appear in the list.
+  // refetch every time this screen comes into focus so new conversations always appear
   useFocusEffect(
     useCallback(() => {
       let active = true;

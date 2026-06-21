@@ -6,6 +6,7 @@ import { authMiddleware, AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
 
+// GET /api/messages — list all conversations with last message preview
 router.get('/', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId } = (req as AuthenticatedRequest).user;
@@ -15,6 +16,7 @@ router.get('/', authMiddleware, async (req: Request, res: Response): Promise<voi
     const result = await Promise.all(
       convos.map(async (conv) => {
         const profile = await Profile.findById(conv.profileId).select('name age city photo verified');
+        // grab just the most recent message for the preview
         const lastMessage = await Message.findOne({ chatId: conv.chatId }).sort({ timestamp: -1 });
 
         return {
@@ -30,6 +32,7 @@ router.get('/', authMiddleware, async (req: Request, res: Response): Promise<voi
       }),
     );
 
+    // sort by most recent message so active chats bubble to the top
     result.sort((a, b) => {
       const aTime = a.lastMessage ? new Date(a.lastMessage.timestamp).getTime() : 0;
       const bTime = b.lastMessage ? new Date(b.lastMessage.timestamp).getTime() : 0;
@@ -43,6 +46,7 @@ router.get('/', authMiddleware, async (req: Request, res: Response): Promise<voi
   }
 });
 
+// GET /api/messages/:conversationId — full message history for a single chat
 router.get('/:conversationId', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const { conversationId } = req.params;
@@ -50,9 +54,11 @@ router.get('/:conversationId', authMiddleware, async (req: Request, res: Respons
 
     const conv = await Conversation.findById(conversationId);
     if (!conv) { res.status(404).json({ success: false, message: 'Conversation not found.' }); return; }
+    // make sure someone can't read another user's messages by guessing an id
     if (conv.userId !== userId) { res.status(403).json({ success: false, message: "You're not part of this conversation." }); return; }
 
     const profile = await Profile.findById(conv.profileId);
+    // sort ascending so oldest messages appear at the top
     const messages = await Message.find({ chatId: conv.chatId }).sort({ timestamp: 1 });
 
     res.json({
@@ -78,6 +84,7 @@ router.get('/:conversationId', authMiddleware, async (req: Request, res: Respons
   }
 });
 
+// POST /api/messages/:conversationId/send — http fallback for sending messages (websocket is preferred)
 router.post('/:conversationId/send', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const { conversationId } = req.params;

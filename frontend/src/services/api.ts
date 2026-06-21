@@ -1,13 +1,5 @@
-// All network calls to the backend go through this file.
-// TypeScript interfaces give us compile-time safety on what the API returns.
-// Screens never call fetch() directly — they import functions from here.
-//
-// BASE_URL auto-detects so it "just works" everywhere:
-//   • Web:            http://localhost:3001/api
-//   • Expo Go / device: http://<your-PC's-LAN-IP>:3001/api  (derived from the
-//                       Metro/Expo host the app was loaded from)
-//   • Android emulator: http://10.0.2.2:3001/api  (host loopback alias)
-// Override anytime by setting EXPO_PUBLIC_API_URL in your environment.
+// all backend calls live here so screens never touch fetch() directly
+// auto-detect the right URL — env override, then LAN IP from Metro host, then fallback
 
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
@@ -17,15 +9,14 @@ import type { Filters, User, Profile, Message, Conversation, FullConversation, C
 const API_PORT = 3001;
 
 function resolveBaseUrl(): string {
-  // 1) Explicit override always wins
+  // explicit env var wins over everything
   const override = process.env.EXPO_PUBLIC_API_URL;
   if (override) return override.replace(/\/$/, '');
 
-  // 2) Web runs in the browser — same host as the page
+  // web just talks to itself
   if (Platform.OS === 'web') return `http://localhost:${API_PORT}/api`;
 
-  // 3) Native (Expo Go / dev build): reuse the host Metro served the bundle from,
-  //    which is your computer's LAN IP — so the phone hits the right machine.
+  // native: pull the host Metro served the bundle from, that's your PC's LAN IP
   const hostUri =
     Constants.expoConfig?.hostUri ||
     (Constants.expoGoConfig as { debuggerHost?: string } | undefined)?.debuggerHost ||
@@ -34,14 +25,12 @@ function resolveBaseUrl(): string {
   const host = hostUri?.split(':')[0];
   if (host) return `http://${host}:${API_PORT}/api`;
 
-  // 4) Last-resort fallbacks
+  // android emulator has a special alias for the host machine
   if (Platform.OS === 'android') return `http://10.0.2.2:${API_PORT}/api`;
   return `http://localhost:${API_PORT}/api`;
 }
 
 export const BASE_URL = resolveBaseUrl();
-
-// ── Response shapes ────────────────────────────────────────────────────────────
 
 interface ApiSuccess {
   success: true;
@@ -92,7 +81,7 @@ interface MyMatchesResponse extends ApiSuccess {
   matches: MatchSummary[];
 }
 
-// Profile fields the onboarding flow can save
+// fields the onboarding flow sends up to the server
 export interface ProfileInput {
   name?: string;
   age?: number;
@@ -133,8 +122,6 @@ interface PaymentConfirmResponse extends ApiSuccess {
   message: string;
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
-
 const getToken = async (): Promise<string | null> =>
   AsyncStorage.getItem('@gostart_token');
 
@@ -148,9 +135,7 @@ const authHeaders = async (): Promise<HeadersInit_> => {
 
 const REQUEST_TIMEOUT_MS = 12000;
 
-// Generic fetch wrapper — throws with the server's message on non-OK status.
-// Includes a timeout so a request to an unreachable backend fails fast with a
-// clear message instead of leaving the UI spinning forever.
+// wrapper that times out after 12s and throws a readable error on failure
 async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${BASE_URL}${endpoint}`;
 
@@ -177,8 +162,6 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
 
   return data;
 }
-
-// ── Auth ───────────────────────────────────────────────────────────────────────
 
 export const loginUser = (email: string, password: string) =>
   apiFetch<AuthResponse>('/auth/login', {
@@ -216,15 +199,13 @@ export const registerUser = (
 export const getMe = async () =>
   apiFetch<MeResponse>('/auth/me', { headers: await authHeaders() });
 
-// Save full profile (onboarding) — marks onboarding complete server-side
+// saves the full profile and marks onboarding done on the server side
 export const saveProfile = async (profile: ProfileInput) =>
   apiFetch<MeResponse>('/auth/profile', {
     method: 'PUT',
     headers: await authHeaders(),
     body: JSON.stringify(profile),
   });
-
-// ── Credits ────────────────────────────────────────────────────────────────────
 
 export const getCredits = async () =>
   apiFetch<CreditsResponse>('/credits', { headers: await authHeaders() });
@@ -247,8 +228,6 @@ export const confirmPayment = async (
     body: JSON.stringify({ packageId, paymentId, orderId }),
   });
 
-// ── Filters ────────────────────────────────────────────────────────────────────
-
 export const getFilters = async () =>
   apiFetch<FiltersResponse>('/filters', { headers: await authHeaders() });
 
@@ -258,8 +237,6 @@ export const saveFilters = async (filters: Filters) =>
     headers: await authHeaders(),
     body: JSON.stringify(filters),
   });
-
-// ── Matches ────────────────────────────────────────────────────────────────────
 
 export const startSearch = async (filters: Filters) =>
   apiFetch<SearchStartResponse>('/matches/search', {
@@ -285,8 +262,6 @@ export const getMyMatches = async () =>
 
 export const getProfile = async (id: string) =>
   apiFetch<{ success: true; profile: Profile }>(`/profiles/${id}`, { headers: await authHeaders() });
-
-// ── Messages ───────────────────────────────────────────────────────────────────
 
 export const getConversations = async () =>
   apiFetch<ConversationsResponse>('/messages', { headers: await authHeaders() });

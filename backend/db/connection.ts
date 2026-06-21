@@ -1,18 +1,3 @@
-// ====================================================================
-// MongoDB Connection — connects via Mongoose, logs status, seeds data
-//
-// HOW IT WORKS:
-//  1. Reads MONGO_URI from the .env file (or environment variables).
-//  2. Mongoose opens a persistent connection pool — all models reuse it.
-//  3. After connecting, seedInitialData() runs once:
-//       - Seeds 5 realistic dating profiles if the collection is empty.
-//       - Creates the demo@gostart.app account if it doesn't exist yet.
-//
-// TO SWITCH TO ATLAS:
-//  Just change MONGO_URI in the .env file to your Atlas connection string.
-//  No code changes needed.
-// ====================================================================
-
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { User } from '../models/User';
@@ -20,6 +5,7 @@ import { Profile } from '../models/Profile';
 import { Conversation } from '../models/Conversation';
 import { Message } from '../models/Message';
 
+// grab the mongo uri from .env or fall back to local
 export async function connectDB(): Promise<void> {
   const uri = process.env.MONGO_URI ?? 'mongodb://localhost:27017/gostart';
 
@@ -28,8 +14,6 @@ export async function connectDB(): Promise<void> {
 
   await seedInitialData();
 }
-
-// ── Seed: Dating Profiles ────────────────────────────────────────────────────
 
 async function seedInitialData(): Promise<void> {
   await migrateConversations();
@@ -40,9 +24,7 @@ async function seedInitialData(): Promise<void> {
   await ensureDemoProfile();
 }
 
-// Give the demo account a matchable dating profile (same _id as the demo user)
-// so a real account can match with it and test two-way chat. Demo is "male" so
-// it shows up under "Looking for: Men".
+// create a matchable profile for the demo account so others can find and chat with it
 async function ensureDemoProfile(): Promise<void> {
   const exists = await Profile.findById('user_demo');
   if (exists) return;
@@ -69,8 +51,7 @@ async function ensureDemoProfile(): Promise<void> {
   console.log('[MongoDB] Created matchable profile for the demo account.');
 }
 
-// Users created before the onboarding flow existed have no onboardingComplete
-// field. Treat them as already onboarded so they aren't forced through it.
+// old users created before onboarding existed — just mark them as done so they skip it
 async function migrateOnboardingFlag(): Promise<void> {
   const result = await User.updateMany(
     { onboardingComplete: { $exists: false } },
@@ -81,9 +62,11 @@ async function migrateOnboardingFlag(): Promise<void> {
   }
 }
 
+// conversations created before we added chatId need to be backfilled
 async function migrateConversations(): Promise<void> {
   const convos = await Conversation.find({ chatId: { $exists: false } });
   for (const conv of convos) {
+    // chatId is sorted so both sides get the same value regardless of who initiated
     const chatId = [conv.userId, conv.profileId].sort().join('_');
     await Conversation.updateOne({ _id: conv._id }, { $set: { chatId } });
   }
@@ -101,9 +84,10 @@ async function migrateConversations(): Promise<void> {
   }
 }
 
+// seed some realistic profiles on first run so the app isn't empty
 async function seedProfiles(): Promise<void> {
   const count = await Profile.countDocuments();
-  if (count > 0) return; // already seeded — skip
+  if (count > 0) return;
 
   const profiles = [
     {
@@ -215,7 +199,7 @@ async function seedProfiles(): Promise<void> {
       about: "Backend engineer at a Series B startup. Avid cyclist, amateur chef, and someone who actually reads the books on his shelf. Looking for a genuine connection over good food and better conversations.",
       tags: ['Cyclist', 'Foodie', 'Tech', 'Reader', 'Dog lover'],
       weekendVibe: 'Long bike rides then cooking something elaborate',
-      firstDateIdea: 'Farmer\'s market brunch then a walk in Lodhi Garden',
+      firstDateIdea: "Farmer's market brunch then a walk in Lodhi Garden",
       loveLanguage: 'Quality Time',
       verified: true,
       photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80',
@@ -264,7 +248,7 @@ async function seedProfiles(): Promise<void> {
   console.log(`[MongoDB] Seeded ${profiles.length} profiles.`);
 }
 
-// Upsert the 3 male profiles — runs on every start so existing DBs get them too.
+// upsert the male profiles on every startup so existing dbs get them too
 async function ensureMaleProfiles(): Promise<void> {
   const maleProfiles = [
     {
@@ -327,11 +311,10 @@ async function ensureMaleProfiles(): Promise<void> {
   ];
 
   for (const p of maleProfiles) {
+    // only insert if not already there — never overwrite existing data
     await Profile.findOneAndUpdate({ _id: p._id }, { $setOnInsert: p }, { upsert: true, new: true });
   }
 }
-
-// ── Seed: Demo User ──────────────────────────────────────────────────────────
 
 async function seedDemoUser(): Promise<void> {
   const exists = await User.findOne({ email: 'demo@gostart.app' });
@@ -350,6 +333,7 @@ async function seedDemoUser(): Promise<void> {
     onboardingComplete: true,
   });
 
+  // sorted so the chatId is the same from both sides
   const chatId1 = [demoUser._id, 'profile_001'].sort().join('_');
   const chatId2 = [demoUser._id, 'profile_002'].sort().join('_');
 
@@ -367,6 +351,7 @@ async function seedDemoUser(): Promise<void> {
     chatId: chatId2,
   });
 
+  // seed a few starter messages so the chat screen isn't blank on first login
   await Message.insertMany([
     { chatId: chatId1, conversationId: conv1._id, senderId: 'profile_001', text: 'Hey! Excited to chat 😊', timestamp: new Date(Date.now() - 3_600_000) },
     { chatId: chatId1, conversationId: conv1._id, senderId: demoUser._id, text: 'Same here! Tell me about your café recommendations in Gurgaon?', timestamp: new Date(Date.now() - 1_800_000) },

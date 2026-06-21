@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Image, Platform } from 'react-native';
 
-// Matches Figma "Ellipse 1": rgba(113,0,20), opacity 24%, layer-blur 380, 518×485px
-// Center sits at bottom-right of screen, mostly off-screen — simulated with CSS blur on web
+// decorative background glow matching Figma "Ellipse 1" — sits bottom-right, mostly off-screen
+// on web we fake it with CSS blur since RN's blurRadius only works on images because earlier i was testing it on web 
 const WEB_GLOW: object = {
   position: 'absolute',
   right: -230,

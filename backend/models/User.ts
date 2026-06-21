@@ -1,6 +1,5 @@
-// User model — the people who register and use the app.
-// _id is a plain string (we generate our own UUIDs) instead of MongoDB's
-// default ObjectId, so our API responses stay consistent and readable.
+// User model — represents someone who actually logs into the app
+// using string ids instead of mongo objectids so our api responses stay readable
 
 import mongoose, { Schema, Document } from 'mongoose';
 
@@ -50,8 +49,8 @@ const UserSchema = new Schema<IUser>(
     onboardingComplete: { type: Boolean, default: false },
   },
   {
-    timestamps: true,   // adds createdAt + updatedAt automatically
-    _id: false,         // we provide our own _id, don't let Mongoose override it
+    timestamps: true, // mongoose adds createdAt and updatedAt for free
+    _id: false, // we provide our own uuid, don't let mongoose generate one
   },
 );
 

@@ -1,11 +1,3 @@
-// ====================================================================
-// Filter Preferences Routes — save and load search settings
-//
-// Uses MongoDB upsert (findOneAndUpdate with upsert:true) so the first
-// POST creates the document and every subsequent POST updates it in place.
-// One document per user in the user_filters collection.
-// ====================================================================
-
 import { Router, Request, Response } from 'express';
 import { UserFilter } from '../models/UserFilter';
 import { authMiddleware, AuthenticatedRequest } from '../middleware/auth';
@@ -13,6 +5,7 @@ import { SearchFilters } from '../types';
 
 const router = Router();
 
+// sensible defaults so new users get reasonable results on first search
 const DEFAULT_FILTERS: SearchFilters = {
   lookingFor: 'Women',
   minAge: 20,
@@ -22,7 +15,7 @@ const DEFAULT_FILTERS: SearchFilters = {
   profession: null,
 };
 
-// GET /api/filters
+// GET /api/filters — return saved filters or defaults if nothing saved yet
 router.get('/', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId } = (req as AuthenticatedRequest).user;
@@ -49,7 +42,7 @@ router.get('/', authMiddleware, async (req: Request, res: Response): Promise<voi
   }
 });
 
-// POST /api/filters — upsert the user's filter preferences
+// POST /api/filters — upsert so first save creates it and every later save updates in place
 router.post('/', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const { lookingFor, minAge, maxAge, location, religion, profession } =
@@ -70,7 +63,7 @@ router.post('/', authMiddleware, async (req: Request, res: Response): Promise<vo
       profession: profession ?? null,
     };
 
-    // Upsert: creates on first save, updates on subsequent saves
+    // storing in mongo so filters persist across sessions
     await UserFilter.findOneAndUpdate(
       { userId },
       { ...newFilters, userId },

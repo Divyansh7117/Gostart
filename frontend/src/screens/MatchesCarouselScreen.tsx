@@ -1,6 +1,5 @@
-// "Your Matches" — the same browse-and-choose carousel the home-screen swipe
-// leads to, but populated with people you've already matched with. Navigate with
-// the in-card arrows (or ← / → keys on web); the pinned button continues the chat.
+// browse people you've already matched with — same card carousel as MatchRevealed
+// arrow keys work on web, dots let you jump directly to any match
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -35,6 +34,7 @@ export default function MatchesCarouselScreen({ navigation }: Props) {
           if (!active) return;
           if (data.success) {
             setMatches(data.matches);
+            // clamp index in case a match was removed
             setIndex((i) => Math.min(i, Math.max(0, data.matches.length - 1)));
           }
         })
@@ -47,7 +47,7 @@ export default function MatchesCarouselScreen({ navigation }: Props) {
   const count = matches.length;
   const current = matches[index];
 
-  // Transition animation — fade + directional slide on each switch
+  // fade + slide on each match switch
   const anim = useRef(new Animated.Value(1)).current;
   const dirRef = useRef(0);
   useEffect(() => {
@@ -59,6 +59,7 @@ export default function MatchesCarouselScreen({ navigation }: Props) {
   const goPrev = useCallback(() => { dirRef.current = -1; setIndex((i) => (i - 1 + count) % count); }, [count]);
   const goNext = useCallback(() => { dirRef.current = 1; setIndex((i) => (i + 1) % count); }, [count]);
 
+  // arrow key support on web
   useEffect(() => {
     if (Platform.OS !== 'web' || count <= 1) return;
     const onKey = (e: KeyboardEvent) => {
@@ -76,7 +77,6 @@ export default function MatchesCarouselScreen({ navigation }: Props) {
 
   const goBackToList = () => navigation.reset({ index: 0, routes: [{ name: 'MessagesList' }] });
 
-  // Loading / empty states
   if (loading || count === 0) {
     return (
       <View style={[styles.container, { height: winHeight, paddingTop: insets.top + 24 }]}>
@@ -112,7 +112,6 @@ export default function MatchesCarouselScreen({ navigation }: Props) {
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       <CrimsonGlow />
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} bounces={false} contentContainerStyle={{ paddingBottom: insets.bottom + 130 }}>
-        {/* Hero */}
         <View style={styles.heroArea}>
           <Animated.Image source={{ uri: p.photo }} style={[styles.heroImage, { opacity: anim }]} resizeMode="cover" blurRadius={20} />
           <LinearGradient
@@ -142,7 +141,6 @@ export default function MatchesCarouselScreen({ navigation }: Props) {
           </View>
         </View>
 
-        {/* Details card */}
         <Animated.View style={[styles.detailsCard, { opacity: anim, transform: [{ translateX: slideX }] }]}>
           {count > 1 && (
             <View style={styles.switchRow}>
@@ -208,7 +206,7 @@ export default function MatchesCarouselScreen({ navigation }: Props) {
         </Animated.View>
       </ScrollView>
 
-      {/* Pinned action */}
+      {/* pinned footer — chat is free since they already matched */}
       <View style={[styles.footer, { paddingBottom: insets.bottom + 14 }]}>
         <TouchableOpacity style={styles.startConvBtn} onPress={openChat} activeOpacity={0.85}>
           <Ionicons name="chatbubble" size={18} color="#fff" />

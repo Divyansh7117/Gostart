@@ -1,15 +1,3 @@
-// ====================================================================
-// Profiles Routes — browse and add dating profiles dynamically
-//
-// WHY THIS EXISTS: Profiles are now in MongoDB, not hardcoded in a file.
-// This endpoint lets you add new profiles to the pool without touching code —
-// just a POST with JSON. Great for reviewers who want to demo the matching.
-//
-//   GET  /api/profiles        → list all profiles (filterable by query params)
-//   GET  /api/profiles/:id    → single profile
-//   POST /api/profiles        → add a new profile
-// ====================================================================
-
 import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { Profile } from '../models/Profile';
@@ -17,7 +5,7 @@ import { authMiddleware } from '../middleware/auth';
 
 const router = Router();
 
-// GET /api/profiles
+// GET /api/profiles — list all profiles, optionally filtered by gender or age range
 router.get('/', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const { gender, minAge, maxAge } = req.query as { gender?: string; minAge?: string; maxAge?: string };
@@ -33,7 +21,7 @@ router.get('/', authMiddleware, async (req: Request, res: Response): Promise<voi
   }
 });
 
-// GET /api/profiles/:id
+// GET /api/profiles/:id — fetch a single profile by id
 router.get('/:id', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const profile = await Profile.findById(req.params.id);
@@ -44,7 +32,7 @@ router.get('/:id', authMiddleware, async (req: Request, res: Response): Promise<
   }
 });
 
-// POST /api/profiles — add a new profile to the dating pool
+// POST /api/profiles — add a new profile to the dating pool without touching seed data
 router.post('/', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const {
@@ -53,6 +41,7 @@ router.post('/', authMiddleware, async (req: Request, res: Response): Promise<vo
       verified, photo,
     } = req.body;
 
+    // check all required fields upfront so the error message is actually helpful
     const requiredFields = { name, age, gender, city, height, religion, profession, distance, about, weekendVibe, firstDateIdea, loveLanguage, photo };
     const missing = Object.entries(requiredFields).filter(([, v]) => !v && v !== 0).map(([k]) => k);
     if (missing.length > 0) {

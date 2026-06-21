@@ -1,3 +1,6 @@
+// Conversation model — links a user to a profile they've connected with
+// chatId is the shared room id used by websocket so both sides can find the same room
+
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IConversation extends Document<string> {
@@ -21,6 +24,7 @@ const ConversationSchema = new Schema<IConversation>(
   },
 );
 
+// unique compound index so a user can only have one conversation per profile
 ConversationSchema.index({ userId: 1, profileId: 1 }, { unique: true });
 
 export const Conversation = mongoose.model<IConversation>('Conversation', ConversationSchema);

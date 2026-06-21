@@ -1,7 +1,3 @@
-// ====================================================
-// Gostart Backend — Express + WebSocket (ws) + TypeScript + MongoDB
-// ====================================================
-
 import 'dotenv/config';
 import express, { Request, Response, NextFunction } from 'express';
 import { createServer } from 'http';
@@ -24,20 +20,12 @@ const app = express();
 const httpServer = createServer(app);
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
 
-// ── WebSocket server ───────────────────────────────────────────────────────────
-// Mounted at /ws so it coexists with Express on the same port.
-// Protocol (all messages are JSON):
-//   client → server:  { type: 'auth', token }
-//   client → server:  { type: 'join_chat', chatId }
-//   client → server:  { type: 'send_message', chatId, conversationId, text }
-//   server → client:  { type: 'auth_ok' } | { type: 'error', message }
-//   server → client:  { type: 'new_message', id, senderId, text, timestamp }
-
+// websocket server lives at /ws so it shares the same port as express
 const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
 
-// chatId → set of open sockets in that room
+// chatId maps to all the sockets currently in that room
 const rooms = new Map<string, Set<WebSocket>>();
-// socket → { userId, chatId? }
+// each socket keeps track of which user it belongs to and which chat they're in
 const meta  = new Map<WebSocket, { userId: string; chatId?: string }>();
 
 function broadcast(chatId: string, payload: object) {
@@ -52,6 +40,7 @@ wss.on('connection', (ws) => {
     let msg: Record<string, any>;
     try { msg = JSON.parse(raw.toString()); } catch { return; }
 
+    // first thing a client must do is send their jwt so we know who they are
     if (msg.type === 'auth') {
       try {
         const decoded = jwt.verify(msg.token, JWT_SECRET) as { userId: string };
@@ -68,13 +57,13 @@ wss.on('connection', (ws) => {
 
     if (msg.type === 'join_chat') {
       const chatId = msg.chatId as string;
+      // make sure the user actually owns this conversation before letting them in
       const conv = await Conversation.findOne({ userId: info.userId, chatId }).catch(() => null);
       if (!conv) { ws.send(JSON.stringify({ type: 'error', message: 'Not authorized for this chat' })); return; }
 
-      // Leave old room
+      // leave the old room before joining the new one
       if (info.chatId) rooms.get(info.chatId)?.delete(ws);
 
-      // Join new room
       info.chatId = chatId;
       if (!rooms.has(chatId)) rooms.set(chatId, new Set());
       rooms.get(chatId)!.add(ws);
@@ -89,6 +78,7 @@ wss.on('connection', (ws) => {
       if (!conv) return;
 
       try {
+        // save to mongo then broadcast to everyone in the room
         const saved = await Message.create({
           chatId, conversationId,
           senderId: info.userId,
@@ -108,6 +98,7 @@ wss.on('connection', (ws) => {
     }
   });
 
+  // clean up when a socket disconnects
   ws.on('close', () => {
     const info = meta.get(ws);
     if (info?.chatId) rooms.get(info.chatId)?.delete(ws);
@@ -115,16 +106,13 @@ wss.on('connection', (ws) => {
   });
 });
 
-// ── REST middleware ────────────────────────────────────────────────────────────
-
 app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '15mb' }));
+// log every incoming request so we can debug easily
 app.use((req: Request, _res: Response, next: NextFunction) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
   next();
 });
-
-// ── Routes ─────────────────────────────────────────────────────────────────────
 
 app.use('/api/auth', authRouter);
 app.use('/api/matches', matchesRouter);
@@ -137,17 +125,18 @@ app.get('/api/health', (_req, res) =>
   res.json({ status: 'ok', app: 'Gostart API', version: '1.0.0', timestamp: new Date().toISOString() }),
 );
 
+// catch-all for routes that don't exist
 app.use((req: Request, res: Response) =>
   res.status(404).json({ success: false, message: `Route ${req.method} ${req.path} not found.` }),
 );
 
+// global error handler so unhandled crashes return json instead of blowing up
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error('Unhandled error:', err);
   res.status(500).json({ success: false, message: 'An unexpected error occurred.' });
 });
 
-// ── Start ──────────────────────────────────────────────────────────────────────
-
+// connect to mongo first, then start listening
 connectDB()
   .then(() => {
     httpServer.listen(PORT, () => {

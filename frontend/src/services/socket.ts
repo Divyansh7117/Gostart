@@ -1,5 +1,5 @@
-// Real-time chat via native WebSocket (built into React Native — no package needed).
-// Connects to ws://LAN-IP:3001/ws alongside the REST API on the same port.
+// real-time chat over native WebSocket — same port as the REST API, different path
+// mirrors the URL logic from api.ts so it always points at the right machine
 
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
@@ -24,6 +24,7 @@ type MsgHandler = (msg: Record<string, any>) => void;
 
 let ws: WebSocket | null = null;
 const handlers = new Set<MsgHandler>();
+// messages queued while the socket is still connecting
 const pending: string[] = [];
 
 function rawSend(data: object) {
@@ -36,6 +37,7 @@ function rawSend(data: object) {
 }
 
 export async function connectSocket(): Promise<void> {
+  // don't reconnect if already open or mid-handshake
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
 
   const token = await AsyncStorage.getItem('@gostart_token');
@@ -46,6 +48,7 @@ export async function connectSocket(): Promise<void> {
 
   ws.onopen = () => {
     console.log('[WS] Connected');
+    // send auth immediately on open, then flush anything that was queued
     rawSend({ type: 'auth', token });
     while (pending.length) ws?.send(pending.shift()!);
   };
@@ -54,14 +57,14 @@ export async function connectSocket(): Promise<void> {
     try {
       const msg = JSON.parse(e.data as string);
       handlers.forEach((h) => h(msg));
-    } catch { /* malformed frame */ }
+    } catch { /* drop malformed frames */ }
   };
 
   ws.onerror = (e) => console.log('[WS] Error', e);
   ws.onclose = () => console.log('[WS] Closed');
 }
 
-/** Returns a cleanup function that removes the handler. */
+// returns a cleanup fn so callers can unsubscribe when unmounting
 export function addHandler(handler: MsgHandler): () => void {
   handlers.add(handler);
   return () => handlers.delete(handler);

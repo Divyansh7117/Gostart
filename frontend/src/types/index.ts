@@ -1,7 +1,4 @@
-// Central type definitions for the whole app.
-// Every screen, component, and service imports from here — no duplicated interfaces.
-
-// ── User / Auth ────────────────────────────────────────────────────────────────
+// single source of truth for all types — every screen imports from here
 
 export interface User {
   id: string;
@@ -24,8 +21,6 @@ export interface User {
   distance?: string;
   onboardingComplete?: boolean;
 }
-
-// ── Match Profiles ─────────────────────────────────────────────────────────────
 
 export interface Profile {
   id: string;
@@ -53,8 +48,6 @@ export interface Profile {
   userLoveLanguage?: string;
 }
 
-// ── Filters ────────────────────────────────────────────────────────────────────
-
 export interface Filters {
   lookingFor: string;
   minAge: number;
@@ -63,8 +56,6 @@ export interface Filters {
   religion: string | null;
   profession: string | null;
 }
-
-// ── Messages / Chat ────────────────────────────────────────────────────────────
 
 export interface Message {
   id: string;
@@ -95,19 +86,17 @@ export interface FullConversation {
   messages: Message[];
 }
 
-// A matched profile plus the conversation it belongs to (for the matches carousel)
+// a match that already has a conversation attached (for the carousel)
 export interface MatchSummary {
   conversationId: string;
   profile: Profile;
 }
 
-// A search result: a profile, plus whether we've already connected with them
+// search result — includes whether we've already connected with this person
 export interface MatchCandidate extends Profile {
   alreadyConnected: boolean;
   conversationId: string | null;
 }
-
-// ── Credits ────────────────────────────────────────────────────────────────────
 
 export interface CreditPackage {
   id: string;
@@ -116,8 +105,6 @@ export interface CreditPackage {
   label: string;
   description: string;
 }
-
-// ── Community ──────────────────────────────────────────────────────────────────
 
 export interface CommunityPost {
   id: string;
@@ -129,9 +116,7 @@ export interface CommunityPost {
   likes: number;
 }
 
-// ── Navigation Param Lists ─────────────────────────────────────────────────────
-// React Navigation uses these to type-check route params at compile time.
-
+// React Navigation uses these to type-check route params at compile time
 export type RootStackParamList = {
   Login: undefined;
   Onboarding: undefined;
@@ -170,5 +155,4 @@ export type MainTabParamList = {
   ProfileTab: NavigatorScreenParams<ProfileStackParamList>;
 };
 
-// NavigatorScreenParams lets us nest stacks inside tabs with correct types
 import type { NavigatorScreenParams } from '@react-navigation/native';

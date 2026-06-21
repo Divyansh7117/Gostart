@@ -1,18 +1,3 @@
-// ====================================================================
-// Match Search Routes
-//
-// HOW THE SEARCH WORKS:
-//  1. POST /search      → registers a search in memory, returns searchId.
-//  2. After 3 seconds   → queries MongoDB for a matching profile.
-//  3. GET  /search/:id  → frontend polls this every second; returns
-//                         { status: 'searching'|'found'|'not_found', match }.
-//  4. POST /start-conversation → deducts 1 credit in MongoDB,
-//                                creates a Conversation document.
-//
-// Active searches stay in-memory (not in MongoDB) because they're
-// ephemeral — they only exist for the 3-second search window.
-// ====================================================================
-
 import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { Profile, IProfile } from '../models/Profile';
@@ -24,10 +9,10 @@ import { ActiveSearch, SearchFilters, ProfileResponse } from '../types';
 
 const router = Router();
 
-// In-memory: searches are ephemeral (3 seconds), no need for DB persistence
+// searches only last 3 seconds so no point storing them in mongo
 const activeSearches: Record<string, ActiveSearch> = {};
 
-// Convert a Mongoose Profile doc to a clean API response object
+// strips out the mongoose internals before sending profile data to the client
 function toProfileResponse(p: IProfile): ProfileResponse {
   return {
     id: p._id as string,
@@ -50,13 +35,9 @@ function toProfileResponse(p: IProfile): ProfileResponse {
   };
 }
 
-// ── Match Algorithm ──────────────────────────────────────────────────────────
-// Queries MongoDB with the user's filter preferences, returns up to `limit`
-// matching profiles (shuffled) so the user can browse and choose who to talk to.
-
 const MAX_MATCHES = 3;
 
-// Map a lookingFor string to the set of genders it targets
+// map the lookingFor string to actual gender values in the db
 function lookingForGenders(lookingFor: string): string[] {
   if (lookingFor === 'Women') return ['female'];
   if (lookingFor === 'Men')   return ['male'];
@@ -64,7 +45,7 @@ function lookingForGenders(lookingFor: string): string[] {
   return ['female'];
 }
 
-// Default lookingFor for seeded profiles that have no UserFilter record
+// seeded profiles have no UserFilter record so we guess a sensible default
 function defaultLookingFor(gender: string): string {
   if (gender === 'male')   return 'Women';
   if (gender === 'female') return 'Men';
@@ -74,14 +55,14 @@ function defaultLookingFor(gender: string): string {
 async function findMatchingProfiles(
   filters: Partial<SearchFilters>,
   selfId: string,
-  selfGender: string,       // the searcher's own gender
+  selfGender: string,
   limit = MAX_MATCHES,
 ): Promise<ProfileResponse[]> {
   const { lookingFor, minAge, maxAge, location, religion, profession } = filters;
 
-  // Step 1 — filter by what the searcher wants
   const targetGenders = lookingForGenders(lookingFor ?? 'Women');
 
+  // step 1 — filter by what the searcher wants
   const query: Record<string, unknown> = {
     _id: { $ne: selfId },
     gender: { $in: targetGenders },
@@ -92,21 +73,20 @@ async function findMatchingProfiles(
 
   let candidates = await Profile.find(query);
 
-  // Step 2 — bidirectional check: keep only candidates who are also
-  // interested in the searcher's gender.
+  // step 2 — bidirectional check, both users must want each other's gender
   const candidateIds = candidates.map((c) => String(c._id));
   const savedFilters = await UserFilter.find({ userId: { $in: candidateIds } });
   const filterMap = new Map(savedFilters.map((f) => [f.userId, f.lookingFor]));
 
   candidates = candidates.filter((c) => {
     const theirLookingFor = filterMap.get(String(c._id));
-    // Seeded/unregistered profiles have no saved filter — treat as open to anyone.
+    // seeded profiles have no filter saved — treat them as open to anyone
     if (!theirLookingFor) return true;
     const theyWant = lookingForGenders(theirLookingFor);
     return theyWant.includes(selfGender);
   });
 
-  // Location preference
+  // narrow down by location preference if possible
   if (location === 'Nearby') {
     const nearby = candidates.filter((p) => parseInt(p.distance) <= 20);
     if (nearby.length > 0) candidates = nearby;
@@ -115,7 +95,7 @@ async function findMatchingProfiles(
     if (sameCity.length > 0) candidates = sameCity;
   }
 
-  // Shuffle (Fisher–Yates) then take `limit`
+  // shuffle so users don't always see the same profiles in the same order
   for (let i = candidates.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
@@ -124,12 +104,12 @@ async function findMatchingProfiles(
   return candidates.slice(0, limit).map(toProfileResponse);
 }
 
-// POST /api/matches/search — kick off an async search
+// POST /api/matches/search — kicks off the async search, returns a searchId to poll
 router.post('/search', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   const { filters } = req.body as { filters: Partial<SearchFilters> };
   const { userId } = (req as AuthenticatedRequest).user;
 
-  // Fetch the searcher's gender for the bidirectional filter
+  // need the searcher's gender for the bidirectional filter
   const searcher = await User.findById(userId).select('gender');
   const selfGender = searcher?.gender ?? 'male';
 
@@ -143,7 +123,7 @@ router.post('/search', authMiddleware, async (req: Request, res: Response): Prom
     startedAt: Date.now(),
   };
 
-  // Simulate realistic matching latency, then query MongoDB
+  // 3 second delay makes it feel like real matching is happening
   setTimeout(() => {
     findMatchingProfiles(filters ?? {}, userId, selfGender)
       .then((matches) => {
@@ -163,7 +143,7 @@ router.post('/search', authMiddleware, async (req: Request, res: Response): Prom
   res.json({ success: true, searchId, message: 'Search started.' });
 });
 
-// GET /api/matches/search/:searchId — poll for result (frontend calls this every ~1s)
+// GET /api/matches/search/:searchId — frontend polls this every second to check if done
 router.get('/search/:searchId', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   const { searchId } = req.params;
   const { userId } = (req as AuthenticatedRequest).user;
@@ -178,8 +158,7 @@ router.get('/search/:searchId', authMiddleware, async (req: Request, res: Respon
     return;
   }
 
-  // Tag each match with whether the user already has a conversation with them,
-  // so the UI can show "Continue Conversation" (free) instead of "Start" (1 credit).
+  // tag each match with whether the user already chatted with them so the ui can show "continue" instead of spending a credit
   let matches: Array<ProfileResponse & { alreadyConnected: boolean; conversationId: string | null }> = [];
   if (search.results.length > 0) {
     const convos = await Conversation.find({ userId }).select('profileId _id');
@@ -195,14 +174,11 @@ router.get('/search/:searchId', authMiddleware, async (req: Request, res: Respon
     success: true,
     status: search.status,
     matches,
-    // back-compat: single first match
     match: matches[0] ?? null,
   });
 });
 
-// POST /api/matches/start-conversation — open a chat with a matched profile.
-// Costs 1 credit for a NEW connection; reconnecting with someone you've already
-// talked to is free (no deduction) and just returns the existing conversation.
+// POST /api/matches/start-conversation — costs 1 credit for a new chat, free if already connected
 router.post('/start-conversation', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const { profileId } = req.body as { profileId: string };
@@ -214,7 +190,7 @@ router.post('/start-conversation', authMiddleware, async (req: Request, res: Res
     const profile = await Profile.findById(profileId);
     if (!profile) { res.status(404).json({ success: false, message: 'Profile not found.' }); return; }
 
-    // Already connected? Return the existing chat — no credit charged.
+    // already have a conversation with this person — just return it, no credit deducted
     const existing = await Conversation.findOne({ userId, profileId });
     if (existing) {
       res.json({
@@ -228,7 +204,7 @@ router.post('/start-conversation', authMiddleware, async (req: Request, res: Res
       return;
     }
 
-    // New connection — requires a credit
+    // new connection needs a credit
     if (user.credits < 1) {
       res.status(402).json({ success: false, message: 'Not enough credits.', credits: 0 });
       return;
@@ -236,6 +212,7 @@ router.post('/start-conversation', authMiddleware, async (req: Request, res: Res
 
     await User.findByIdAndUpdate(userId, { $inc: { credits: -1 } });
 
+    // chatId is sorted so both sides share the same room
     const chatId = [userId, profileId].sort().join('_');
     const conversationId = uuidv4();
     const conversation = await Conversation.findOneAndUpdate(
@@ -244,6 +221,7 @@ router.post('/start-conversation', authMiddleware, async (req: Request, res: Res
       { upsert: true, new: true },
     );
 
+    // create a mirror conversation so the other profile can also see the chat
     const userProfile = await Profile.findById(userId);
     if (userProfile) {
       const mirrorId = uuidv4();
@@ -270,9 +248,7 @@ router.post('/start-conversation', authMiddleware, async (req: Request, res: Res
   }
 });
 
-// GET /api/matches/my-matches — every profile the user has connected with,
-// returned with full profile details + the conversationId so the frontend
-// carousel can jump straight into the chat.
+// GET /api/matches/my-matches — all profiles the user has connected with, for the matches screen
 router.get('/my-matches', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId } = (req as AuthenticatedRequest).user;

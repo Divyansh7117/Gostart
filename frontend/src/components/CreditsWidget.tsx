@@ -8,6 +8,7 @@ interface CreditsWidgetProps {
   onPress?: () => void;
 }
 
+// reads credits straight from context so it always shows the latest balance
 export default function CreditsWidget({ onPress }: CreditsWidgetProps) {
   const { credits } = useApp();
 
@@ -32,7 +33,6 @@ export default function CreditsWidget({ onPress }: CreditsWidgetProps) {
 const styles = StyleSheet.create({
   touchWrap: {
     borderRadius: 12,
-    // no fixed width — sizes to content
   },
   container: {
     flexDirection: 'row',

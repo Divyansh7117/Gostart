@@ -1,6 +1,4 @@
-// Global state via React Context.
-// TypeScript makes this much safer — the context shape is enforced at every callsite.
-// Any screen calling useApp() gets full autocomplete on user, credits, filters, etc.
+// using context so any screen can read user/credits/filters without prop drilling
 
 import React, {
   createContext,
@@ -13,7 +11,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getMe, getFilters } from '../services/api';
 import type { User, Filters } from '../types';
 
-// The shape of everything the context exposes
 interface AppContextValue {
   user: User | null;
   credits: number;
@@ -48,7 +45,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // On app start — check if user is already logged in via a stored JWT
+  // check stored JWT on app start to auto-restore the session
   useEffect(() => {
     checkAuthState();
   }, []);
@@ -58,7 +55,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const token = await AsyncStorage.getItem('@gostart_token');
       const remember = await AsyncStorage.getItem('@gostart_remember');
 
-      // "Remember me" off → don't auto-login on next launch; clear the stored token.
+      // if "remember me" was off, clear the token so we don't auto-login next time
       if (token && remember === '0') {
         await AsyncStorage.removeItem('@gostart_token');
         await AsyncStorage.removeItem('@gostart_remember');
@@ -76,22 +73,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             const filterData = await getFilters();
             if (filterData.success) setFilters(filterData.filters);
           } catch {
-            // Filters failing is non-fatal — use defaults
+            // filters failing is non-fatal, defaults are fine
           }
         } else {
           await logout();
         }
       }
     } catch {
-      // No token or server unreachable — show login screen
+      // no token or server unreachable — just show the login screen
     } finally {
       setIsLoading(false);
     }
   };
 
   const login = async (userData: User, token: string, remember = true): Promise<void> => {
-    // Token is always stored so this session's API calls are authenticated.
-    // The remember flag controls whether we auto-login on the NEXT app launch.
+    // always store the token for this session's API calls
+    // the remember flag only controls whether we auto-login on the next app launch
     await AsyncStorage.setItem('@gostart_token', token);
     await AsyncStorage.setItem('@gostart_remember', remember ? '1' : '0');
     setUser(userData);
@@ -107,14 +104,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setIsLoggedIn(false);
   };
 
-  // Optimistic credit deduction — update UI instantly, server already deducted on its end
+  // optimistic deduction — update the UI instantly, server already charged on its end
   const deductCredit = (): void =>
     setCredits((prev) => Math.max(0, prev - 1));
 
   const addCredits = (amount: number): void =>
     setCredits((prev) => prev + amount);
 
-  // Pull the true credit balance from the server (keeps the no-credits UI accurate)
+  // pull the real balance from the server to keep the no-credits gate accurate
   const refreshCredits = async (): Promise<void> => {
     try {
       const data = await getMe();
@@ -123,13 +120,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setCredits(data.user.credits);
       }
     } catch {
-      /* offline / unauthorized — keep current state */
+      // offline or unauthorized — keep what we have
     }
   };
 
   const updateFilters = (f: Filters): void => setFilters(f);
 
-  // Logged in but profile not yet completed → must go through onboarding first
+  // if profile isn't done yet, send them through onboarding before anything else
   const needsOnboarding = isLoggedIn && !!user && user.onboardingComplete === false;
 
   return (

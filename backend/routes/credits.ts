@@ -1,14 +1,3 @@
-// ====================================================================
-// Credits Routes — balance, buy credits (Razorpay mocked)
-//
-// PAYMENT FLOW:
-//  1. POST /initiate-payment  → creates a mock Razorpay order.
-//     (Real: call Razorpay SDK, get a real orderId)
-//  2. Frontend opens Razorpay checkout sheet with that orderId.
-//  3. POST /confirm-payment   → verify signature + add credits in MongoDB.
-//     (Real: HMAC-SHA256 verify before touching the DB)
-// ====================================================================
-
 import { Router, Request, Response } from 'express';
 import { User } from '../models/User';
 import { authMiddleware, AuthenticatedRequest } from '../middleware/auth';
@@ -23,11 +12,12 @@ interface CreditPackage {
   description: string;
 }
 
+// only one package for now — easy to add more later
 const CREDIT_PACKAGES: CreditPackage[] = [
   { id: 'pack_5', credits: 5, priceINR: 2000, label: '5 Credits', description: 'One-time · Carry forward forever' },
 ];
 
-// GET /api/credits
+// GET /api/credits — return current balance and available packages
 router.get('/', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId } = (req as AuthenticatedRequest).user;
@@ -39,17 +29,16 @@ router.get('/', authMiddleware, async (req: Request, res: Response): Promise<voi
   }
 });
 
-// POST /api/credits/initiate-payment
+// POST /api/credits/initiate-payment — creates a mock razorpay order (swap for real sdk in prod)
 router.post('/initiate-payment', authMiddleware, (req: Request, res: Response): void => {
   const { packageId } = req.body as { packageId: string };
   const pack = CREDIT_PACKAGES.find((p) => p.id === packageId);
   if (!pack) { res.status(400).json({ success: false, message: 'Invalid credit package.' }); return; }
 
-  // Production: const order = await razorpay.orders.create({ amount: pack.priceINR * 100, currency: 'INR' });
   res.json({
     success: true,
     orderId: `mock_order_${Date.now()}`,
-    amount: pack.priceINR * 100, // Razorpay expects paise (1 INR = 100 paise)
+    amount: pack.priceINR * 100, // razorpay takes paise not rupees
     currency: 'INR',
     packageId: pack.id,
     credits: pack.credits,
@@ -57,7 +46,7 @@ router.post('/initiate-payment', authMiddleware, (req: Request, res: Response): 
   });
 });
 
-// POST /api/credits/confirm-payment
+// POST /api/credits/confirm-payment — verify payment then add credits to the user's account
 router.post('/confirm-payment', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
     const { packageId, paymentId, orderId } = req.body as {
@@ -69,10 +58,10 @@ router.post('/confirm-payment', authMiddleware, async (req: Request, res: Respon
 
     const { userId } = (req as AuthenticatedRequest).user;
 
-    // Production: verify Razorpay HMAC-SHA256 before this line
+    // in prod we'd do hmac-sha256 signature verification here before touching the db
     console.log(`[Credits] Payment confirmed — orderId: ${orderId}, paymentId: ${paymentId}`);
 
-    // Atomic credit update using $inc — no race condition if two requests come in
+    // using $inc so concurrent requests can't accidentally set the wrong value
     const updated = await User.findByIdAndUpdate(
       userId,
       { $inc: { credits: pack.credits } },

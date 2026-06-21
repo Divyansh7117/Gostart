@@ -1,3 +1,5 @@
+// Message model — individual chat messages, indexed by chatId for fast room queries
+
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IMessage extends Document {

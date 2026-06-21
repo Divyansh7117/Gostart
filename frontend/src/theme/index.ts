@@ -1,22 +1,21 @@
 export const COLORS = {
-  // ── Figma color tokens ─────────────────────────────────────────────────────
-  crimson:  '#710014',          // brand red (Figma: crimson)
-  sand:     '#F2F1ED',          // primary light surface/text (Figma: sand)
-  obsidian: '#0A0A0A',          // deepest background (Figma: obsidian)
+  // brand colors straight from Figma
+  crimson:  '#710014',
+  sand:     '#F2F1ED',
+  obsidian: '#0A0A0A',
 
-  // ── Semantic aliases (used throughout screens) ─────────────────────────────
   background:    '#0A0A0A',
   card:          '#161616',
   cardBorder:    '#222222',
 
-  primary:       '#710014',     // crimson
+  primary:       '#710014',
   primaryDark:   '#3D0009',
   primaryLight:  '#A0001E',
 
   gold:          '#C9A84C',
   goldLight:     '#E8C76B',
 
-  textPrimary:   '#F2F1ED',     // sand
+  textPrimary:   '#F2F1ED',
   textSecondary: '#8A8A8A',
   textMuted:     '#555555',
 
@@ -37,11 +36,10 @@ export const COLORS = {
 } as const;
 
 export const FONTS = {
-  // Display headings — DM Serif Display (Figma: DMSerifDisplay)
+  // DM Serif Display for headings, Outfit for everything else
   displayBold:    'DMSerifDisplay_400Regular',
   displayItalic:  'DMSerifDisplay_400Regular_Italic',
 
-  // UI / body text — Outfit (Figma: Outfit)
   regular:  'Outfit_400Regular',
   medium:   'Outfit_500Medium',
   semiBold: 'Outfit_600SemiBold',
@@ -65,6 +63,5 @@ export const BORDER_RADIUS = {
   full: 999,
 } as const;
 
-// Phone-first layout: on tablets / foldables / wide windows, content is capped
-// to this width and centered so it stays a readable column instead of stretching.
+// on tablets/wide windows, cap content width so it stays phone-like
 export const CONTENT_MAX_WIDTH = 520;

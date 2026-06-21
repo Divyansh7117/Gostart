@@ -45,7 +45,7 @@ export default function LoginScreen() {
         ? await registerUser(name, email, password, parseInt(age, 10), gender)
         : await loginUser(email, password);
 
-      // New users land on the onboarding flow automatically (onboardingComplete=false)
+      // new users get onboardingComplete=false so the navigator sends them to onboarding
       if (data.success) await login(data.user, data.token, remember);
     } catch (err) {
       Alert.alert('Error', err instanceof Error ? err.message : 'Something went wrong.');
@@ -85,6 +85,7 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.card}>
+            {/* pill toggle between login and sign up */}
             <View style={styles.togglePill}>
               <TouchableOpacity
                 style={[styles.toggleOption, !isSignUp && styles.toggleOptionActive]}

@@ -1,7 +1,5 @@
-// Match results — the search surfaces up to 3 matches. Browse them with the
-// in-card arrows (or ← / → keys on web); each switch cross-fades + slides in.
-// New connections cost 1 credit; reconnecting with someone you've already
-// talked to is free and jumps straight back into the chat.
+// shows up to 3 matches after a search — swipe through them with the in-card arrows
+// reconnecting with someone you've already talked to is free, new connection costs 1 credit
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -33,7 +31,7 @@ export default function MatchRevealedScreen({ navigation, route }: Props) {
   const count = matches.length;
   const match = matches[index];
 
-  // Transition animation — fade + directional slide on each match switch
+  // fade + slide animation that plays whenever the displayed match changes
   const anim = useRef(new Animated.Value(1)).current;
   const dirRef = useRef(0);
 
@@ -47,7 +45,7 @@ export default function MatchRevealedScreen({ navigation, route }: Props) {
   const goPrev = useCallback(() => { dirRef.current = -1; setIndex((i) => (i - 1 + count) % count); }, [count]);
   const goNext = useCallback(() => { dirRef.current = 1; setIndex((i) => (i + 1) % count); }, [count]);
 
-  // Web: arrow-key navigation between matches
+  // arrow key navigation for web users
   useEffect(() => {
     if (Platform.OS !== 'web' || count <= 1) return;
     const onKey = (e: KeyboardEvent) => {
@@ -58,8 +56,8 @@ export default function MatchRevealedScreen({ navigation, route }: Props) {
     return () => window.removeEventListener('keydown', onKey);
   }, [goPrev, goNext, count]);
 
-  // Reconnecting is free — go straight in. New connection → confirm (1 credit).
   const handlePrimary = () => {
+    // already connected — just jump back in for free
     if (match.alreadyConnected) {
       openChat();
       return;
@@ -79,6 +77,7 @@ export default function MatchRevealedScreen({ navigation, route }: Props) {
     try {
       const data = await startConversation(match.id);
       if (data.success) {
+        // only deduct locally if this was a brand new connection
         if (!data.alreadyConnected) deductCredit();
         setShowConfirmModal(false);
         navigation.getParent()?.navigate('MessagesTab', {
@@ -98,7 +97,6 @@ export default function MatchRevealedScreen({ navigation, route }: Props) {
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       <CrimsonGlow />
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} bounces={false} contentContainerStyle={{ paddingBottom: insets.bottom + 130 }}>
-        {/* Hero — blurred photo + Logomark + title */}
         <View style={styles.heroArea}>
           <Animated.Image
             source={{ uri: match.photo }}
@@ -133,9 +131,7 @@ export default function MatchRevealedScreen({ navigation, route }: Props) {
           </View>
         </View>
 
-        {/* Details card — animated on each switch */}
         <Animated.View style={[styles.detailsCard, { opacity: anim, transform: [{ translateX: slideX }] }]}>
-          {/* In-card arrows for switching matches */}
           {count > 1 && (
             <View style={styles.switchRow}>
               <TouchableOpacity style={styles.switchBtn} onPress={goPrev} activeOpacity={0.7}>
@@ -207,7 +203,7 @@ export default function MatchRevealedScreen({ navigation, route }: Props) {
         </Animated.View>
       </ScrollView>
 
-      {/* Primary action — flex footer; always visible, bio scrolls above it */}
+      {/* sticky footer — bio scrolls above it */}
       <View style={[styles.footer, { paddingBottom: insets.bottom + 14 }]}>
         <TouchableOpacity style={styles.startConvBtn} onPress={handlePrimary} activeOpacity={0.85}>
           <Ionicons name={match.alreadyConnected ? 'chatbubble' : 'heart'} size={18} color="#fff" />

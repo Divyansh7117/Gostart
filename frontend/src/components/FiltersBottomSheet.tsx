@@ -17,9 +17,8 @@ import { saveFilters } from '../services/api';
 import { useApp } from '../context/AppContext';
 import type { Filters } from '../types';
 
-// ── Dual-thumb range slider ───────────────────────────────────────────────────
-// Web  → two overlapping <input type="range"> on a shared track (CSS trick).
-// Native → custom PanResponder thumbs drawn over a manually painted track.
+// web uses two overlapping <input type="range"> on a shared track
+// native uses custom PanResponder thumbs since there's no built-in range slider
 
 const THUMB = 24;
 const TRACK_H = 4;
@@ -33,9 +32,9 @@ function RangeSlider({
   onMinChange: (v: number) => void;
   onMaxChange: (v: number) => void;
 }) {
-  // ── Web ──────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (Platform.OS !== 'web') return;
+    // inject thumb styles once so we don't repeat them on every render
     if ((document as any).getElementById(RANGE_STYLE_ID)) return;
     const style = (document as any).createElement('style');
     style.id = RANGE_STYLE_ID;
@@ -72,18 +71,15 @@ function RangeSlider({
     return createElement(
       'div',
       { style: { position: 'relative', height: 36, width: '100%', display: 'flex', alignItems: 'center' } },
-      // track background
       createElement('div', { style: { position: 'absolute', left: 0, right: 0, height: TRACK_H, backgroundColor: COLORS.cardBorder, borderRadius: 2 } }),
-      // active fill
       createElement('div', { style: { position: 'absolute', left: `${minPct}%`, width: `${maxPct - minPct}%`, height: TRACK_H, backgroundColor: COLORS.primary, borderRadius: 2 } }),
-      // min input (lower z when near right edge so max thumb stays grabbable)
+      // bump min input z-index when near the right edge so max thumb stays grabbable
       createElement('input', {
         type: 'range', className: 'gs-range',
         min, max, value: minValue,
         style: { zIndex: minPct > 90 ? 3 : 1 },
         onChange: (e: any) => { const v = Number(e.target.value); if (v < maxValue) onMinChange(v); },
       }),
-      // max input
       createElement('input', {
         type: 'range', className: 'gs-range',
         min, max, value: maxValue,
@@ -93,19 +89,16 @@ function RangeSlider({
     );
   }
 
-  // ── Native ───────────────────────────────────────────────────────────────────
-  // Local state drives rendering; refs give PanResponder fresh values without
-  // stale-closure issues (PanResponder is created once via useRef).
-
+  // native slider — refs give PanResponder stale-closure-free access to current values
   const [minVal, setMinVal] = useState(minValue);
   const [maxVal, setMaxVal] = useState(maxValue);
   const [trackWidth, setTrackWidth] = useState(0);
 
   const minRef = useRef(minValue);
   const maxRef = useRef(maxValue);
-  const twRef  = useRef(0);   // track width ref (PanResponder-accessible)
+  const twRef  = useRef(0);
 
-  // Sync when parent resets the sheet
+  // sync when parent resets the sheet
   useEffect(() => { minRef.current = minValue; setMinVal(minValue); }, [minValue]);
   useEffect(() => { maxRef.current = maxValue; setMaxVal(maxValue); }, [maxValue]);
 
@@ -116,6 +109,7 @@ function RangeSlider({
   const minStart = useRef(0);
   const maxStart = useRef(0);
 
+  // PanResponder ref trick so stale closures don't capture old values
   const minPan = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -158,22 +152,15 @@ function RangeSlider({
         setTrackWidth(w);
       }}
     >
-      {/* Background track */}
       <View style={[styles.nativeTrack, { left: THUMB / 2, right: THUMB / 2 }]} />
-
-      {/* Active fill between thumbs */}
       <View style={[
         styles.nativeTrackFill,
         { left: THUMB / 2 + minPct * trackWidth, width: Math.max(0, (maxPct - minPct) * trackWidth) },
       ]} />
-
-      {/* Min thumb */}
       <View
         {...minPan.panHandlers}
         style={[styles.nativeThumb, { left: minPct * trackWidth }]}
       />
-
-      {/* Max thumb */}
       <View
         {...maxPan.panHandlers}
         style={[styles.nativeThumb, { left: maxPct * trackWidth, zIndex: 2 }]}
@@ -181,8 +168,6 @@ function RangeSlider({
     </View>
   );
 }
-
-// ── Sheet ─────────────────────────────────────────────────────────────────────
 
 interface FiltersBottomSheetProps {
   visible: boolean;
@@ -209,10 +194,12 @@ export default function FiltersBottomSheet({ visible, onClose }: FiltersBottomSh
   const [showReligionDrop, setShowReligionDrop]     = useState(false);
   const [showProfessionDrop, setShowProfessionDrop] = useState(false);
 
+  // animate the sheet in/out — spring on open, quick ease on close
   const slideAnim = useRef(new Animated.Value(SHEET_HEIGHT)).current;
 
   useEffect(() => {
     if (visible) {
+      // reset local state to match context each time the sheet opens
       setLookingFor(filters.lookingFor);
       setMinAge(filters.minAge);
       setMaxAge(filters.maxAge);
@@ -228,6 +215,7 @@ export default function FiltersBottomSheet({ visible, onClose }: FiltersBottomSh
   const handleClose = async () => {
     const newFilters: Filters = { lookingFor, minAge, maxAge, location, religion, profession };
     updateFilters(newFilters);
+    // save is best-effort — non-fatal if offline
     try { await saveFilters(newFilters); } catch { /* non-fatal */ }
     onClose();
   };
@@ -251,6 +239,7 @@ export default function FiltersBottomSheet({ visible, onClose }: FiltersBottomSh
   return (
     <Modal transparent visible={visible} animationType="none" onRequestClose={handleClose}>
       <View style={{ flex: 1 }}>
+        {/* tap outside the sheet to close */}
         <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={handleClose} />
 
         <Animated.View style={[styles.floatingCloseWrap, { transform: [{ translateY: slideAnim }] }]}>
@@ -356,7 +345,6 @@ const styles = StyleSheet.create({
   ageLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
   ageLabel: { color: COLORS.textPrimary, fontSize: 14, fontFamily: FONTS.semiBold },
   ageDash: { color: COLORS.textSecondary, fontSize: 14 },
-  // Native dual-thumb slider
   nativeTrackContainer: { width: '100%', height: 44, justifyContent: 'center' },
   nativeTrack: { position: 'absolute', height: TRACK_H, backgroundColor: COLORS.cardBorder, borderRadius: 2 },
   nativeTrackFill: { position: 'absolute', height: TRACK_H, backgroundColor: COLORS.primary, borderRadius: 2, top: (44 - TRACK_H) / 2 },

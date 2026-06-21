@@ -1,7 +1,5 @@
-// Profile model — dating profiles that users get matched with.
-// Separate from User: a User is someone who's logged in; a Profile is
-// someone they can be matched with. In a real app they'd be linked,
-// but keeping them separate makes the demo simpler to seed and manage.
+// Profile model — the dating card that gets shown to other users during matching
+// separate from User so we can seed fake profiles without creating real accounts
 
 import mongoose, { Schema, Document } from 'mongoose';
 

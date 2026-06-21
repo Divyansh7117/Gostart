@@ -25,32 +25,31 @@ export default function ChatScreen({ navigation, route }: Props) {
   const [connected, setConnected] = useState(false);
   const flatListRef = useRef<FlatList<Message>>(null);
 
+  // deterministic room ID — same for both users regardless of who opens chat first
   const chatId = [user?.id, match.id].sort().join('_');
 
   useEffect(() => {
     let removeHandler: (() => void) | null = null;
 
     const init = async () => {
-      // Load history from REST
+      // load history first via REST so old messages show before the socket connects
       try {
         const data = await getConversation(conversationId);
         if (data.success) setMessages(data.conversation.messages);
       } catch { /* silent */ }
 
-      // Connect WebSocket and join chat room
       await connectSocket();
       joinChat(chatId);
       setConnected(isConnected());
 
       removeHandler = addHandler((msg) => {
         if (msg.type === 'auth_ok') {
-          // Auth confirmed — join the room
           joinChat(chatId);
           setConnected(true);
         }
         if (msg.type === 'new_message') {
           setMessages((prev) => {
-            // Replace matching optimistic placeholder
+            // swap out the optimistic placeholder with the real server message
             const without = prev.filter(
               (m) => !(m.id.startsWith('local_') && m.text === msg.text && m.senderId === msg.senderId),
             );
@@ -74,7 +73,7 @@ export default function ChatScreen({ navigation, route }: Props) {
     if (!text) return;
     setInputText('');
 
-    // Optimistic bubble
+    // show the bubble immediately before the server confirms
     const optimistic: Message = {
       id: `local_${Date.now()}`,
       senderId: user?.id ?? '',
@@ -87,7 +86,7 @@ export default function ChatScreen({ navigation, route }: Props) {
     if (isConnected()) {
       sendChatMessage(chatId, conversationId, text);
     } else {
-      // Fallback to REST if socket is offline
+      // socket is down, fall back to REST so messages still go through
       setSending(true);
       try { await sendMessage(conversationId, text); } catch { /* optimistic stays */ } finally { setSending(false); }
     }
@@ -99,6 +98,7 @@ export default function ChatScreen({ navigation, route }: Props) {
     const mine = isMyMessage(item);
     return (
       <View style={[styles.messageRow, mine ? styles.rowRight : styles.rowLeft]}>
+        {/* slightly dimmed while still in optimistic state */}
         <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs, item.id.startsWith('local_') && styles.bubbleOptimistic]}>
           <Text style={[styles.bubbleText, mine ? styles.textMine : styles.textTheirs]}>{item.text}</Text>
           <Text style={[styles.timeText, !mine && styles.timeTextTheirs]}>
@@ -126,6 +126,7 @@ export default function ChatScreen({ navigation, route }: Props) {
         >
           <Ionicons name="chevron-back" size={24} color={COLORS.textPrimary} />
         </TouchableOpacity>
+        {/* tap avatar/name to view their full profile */}
         <TouchableOpacity
           style={styles.profileTrigger}
           onPress={() => navigation.navigate('MatchProfile', { profile: match })}
