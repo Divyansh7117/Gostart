@@ -133,7 +133,7 @@ const authHeaders = async (): Promise<HeadersInit_> => {
   };
 };
 
-const REQUEST_TIMEOUT_MS = 12000;
+const REQUEST_TIMEOUT_MS = 60000;
 
 // wrapper that times out after 12s and throws a readable error on failure
 async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
